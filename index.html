@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./public/styles/style.css" />
+    <title>Fish procedural animation</title>
+  </head>
+  <body>
+    <main>
+      <div class="fish-pool-container">
+        <canvas
+          id="canvas"
+          class="fish-canvas"
+          width="1200"
+          height="1200"
+        ></canvas>
+      </div>
+      <details id="settings" class="ui">
+        <summary>Settings</summary>
+        <div class="settings">
+          <div class="radio-container">
+            <div>
+              <input
+                type="radio"
+                id="fish"
+                name="animal"
+                value="fish"
+                checked
+              />
+              <label for="fish">Fish</label>
+            </div>
+            <div>
+              <input type="radio" id="lizard" name="animal" value="lizard" />
+              <label for="lizard">Lizard</label>
+            </div>
+          </div>
+          <div class="option-container">
+            <p>BODY COLOR</p>
+            <div>
+              <input id="body-color" type="color" value="#ffffff" />
+              <button id="body-color-random" disabled="true">RANDOM</button>
+            </div>
+          </div>
+          <div id="fin-option" class="option-container">
+            <p>FIN COLOR</p>
+            <div>
+              <input id="fin-color" type="color" value="#ffffff" />
+              <button id="fin-color-inherit" disabled="true">INHERIT</button>
+            </div>
+          </div>
+          <div class="option-container">
+            <label for="outline-color">OUTLINE COLOR</label>
+            <input type="color" id="outline-color" value="#04080a" />
+          </div>
+          <div class="option-container">
+            <label for="eye-color">EYE COLOR</label>
+            <input type="color" id="eye-color" value="#04080a" />
+          </div>
+          <div class="option-container">
+            <p>AMOUNT OF ANIMALS</p>
+            <div>
+              <label for="amount" id="amount-label">10</label>
+              <input
+                value="150"
+                type="range"
+                name="amount"
+                id="amount"
+                min="0"
+                max="400"
+                step="10"
+              />
+            </div>
+          </div>
+          <button id="confirm">CONFIRM</button>
+        </div>
+      </details>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.x/dist/pixi.min.js"></script>
+    <script type="module" src="./public/scipts/index.js"></script>
+  </body>
+</html>
