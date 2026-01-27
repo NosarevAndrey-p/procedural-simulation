@@ -1,0 +1,3413 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400..900&family=Poppins:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Rubik+Mono+One&display=swap");
+
+      * {
+        /* outline: 1px dashed red; */
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        font-family:
+          Poppins,
+          Segoe UI,
+          Tahoma,
+          sans-serif;
+
+        transition: background-color 0.3s ease-in-out;
+      }
+
+      html {
+        line-height: 1.25;
+        font-family:
+          Poppins,
+          Segoe UI,
+          Tahoma,
+          sans-serif;
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+
+        background-color: var(--main-bg);
+        color: var(--main-text);
+      }
+
+      main {
+        position: relative;
+        flex-grow: 1;
+
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .fish-pool-container {
+        flex-grow: 1;
+        width: 100%;
+        height: 100%;
+        /* width: 400px; */
+        height: 400px;
+        overflow: hidden;
+        position: relative;
+      }
+      .fish-canvas {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        object-fit: cover;
+      }
+
+      .ui {
+        position: absolute;
+        top: 0;
+        padding: 20px;
+
+        background: rgba(255, 255, 255, 0.16);
+        border-radius: 0 0 16px 16px;
+        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(4.5px);
+        -webkit-backdrop-filter: blur(4.5px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+
+      summary {
+        text-align: center;
+      }
+      .settings {
+        margin-top: 20px;
+
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 20px;
+        justify-content: center;
+      }
+
+      .radio-container {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .option-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .option-container > div {
+        display: flex;
+        flex-direction: row;
+        gap: 4px;
+        align-items: center;
+      }
+
+      button {
+        padding: 4px 8px;
+      }
+      #amount-label {
+        text-align: end;
+        width: 30px;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+    <title>Fish procedural animation</title>
+  </head>
+  <body>
+    <main>
+      <div class="fish-pool-container">
+        <canvas
+          id="canvas"
+          class="fish-canvas"
+          width="1200"
+          height="1200"
+        ></canvas>
+      </div>
+      <details id="settings" class="ui">
+        <summary>Settings</summary>
+        <div class="settings">
+          <div class="radio-container">
+            <div>
+              <input
+                type="radio"
+                id="fish"
+                name="animal"
+                value="fish"
+                checked
+              />
+              <label for="fish">Fish</label>
+            </div>
+            <div>
+              <input type="radio" id="lizard" name="animal" value="lizard" />
+              <label for="lizard">Lizard</label>
+            </div>
+          </div>
+          <div class="option-container">
+            <p>BODY COLOR</p>
+            <div>
+              <input id="body-color" type="color" value="#ffffff" />
+              <button id="body-color-random" disabled="true">RANDOM</button>
+            </div>
+          </div>
+          <div id="fin-option" class="option-container">
+            <p>FIN COLOR</p>
+            <div>
+              <input id="fin-color" type="color" value="#ffffff" />
+              <button id="fin-color-inherit" disabled="true">INHERIT</button>
+            </div>
+          </div>
+          <div class="option-container">
+            <label for="outline-color">OUTLINE COLOR</label>
+            <input type="color" id="outline-color" value="#04080a" />
+          </div>
+          <div class="option-container">
+            <label for="eye-color">EYE COLOR</label>
+            <input type="color" id="eye-color" value="#04080a" />
+          </div>
+          <div class="option-container">
+            <p>AMOUNT OF ANIMALS</p>
+            <div>
+              <label for="amount" id="amount-label">10</label>
+              <input
+                value="150"
+                type="range"
+                name="amount"
+                id="amount"
+                min="0"
+                max="400"
+                step="10"
+              />
+            </div>
+          </div>
+          <button id="confirm">CONFIRM</button>
+        </div>
+      </details>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/pixi.js@8.x/dist/pixi.min.js"></script>
+    <script>
+      (() => {
+        // public/scipts/simulation/utils.js
+        var Vector2D = class _Vector2D {
+          /**
+           * Create a new Vector2D instance.
+           * @param {number} x - The x coordinate.
+           * @param {number} y - The y coordinate.
+           */
+          constructor(x = 0, y = 0) {
+            this.x = x;
+            this.y = y;
+          }
+          /**
+           * Generate a random Vector2D with a magnitude in range from minMagnitude to maxMagnitude.
+           * @param {number} [maxMagnitude=1] - The maximum magnitude of the vector.
+           * @param {number} [minMagnitude=0] - The minimum magnitude of the vector.
+           * @returns {Vector2D} A new Vector2D instance.
+           */
+          static random(maxMagnitude = 1, minMagnitude = 0) {
+            const angle = Math.random() * 2 * Math.PI;
+            const magnitude =
+              minMagnitude + Math.random() * (maxMagnitude - minMagnitude);
+            const x = magnitude * Math.cos(angle);
+            const y = magnitude * Math.sin(angle);
+            return new _Vector2D(x, y);
+          }
+          /**
+           * Create a Vector2D from polar coordinates.
+           * @param {number} angle - The angle in radians.
+           * @param {number} magnitude - The magnitude of the vector.
+           * @returns {Vector2D} A new Vector2D instance.
+           */
+          static fromPolar(angle, magnitude) {
+            const x = magnitude * Math.cos(angle);
+            const y = magnitude * Math.sin(angle);
+            return new _Vector2D(x, y);
+          }
+          /**
+           * Create a Vector2D from an object with x and y properties.
+           * @param {Object} object - The object with x and y properties.
+           * @param {number} object.x - The x coordinate.
+           * @param {number} object.y - The y coordinate.
+           * @returns {Vector2D} A new Vector2D instance.
+           */
+          static fromObject(object) {
+            return new _Vector2D(object.x, object.y);
+          }
+          /**
+           * Create a Vector2D from another Vector2D instance.
+           * @param {Vector2D} vec - The Vector2D instance.
+           * @returns {Vector2D} A new Vector2D instance.
+           */
+          static fromVec2D(vec) {
+            return new _Vector2D(vec.x, vec.y);
+          }
+          /**
+           * Add two vectors and return a new Vector2D instance.
+           * @param {Vector2D} vec1 - The first vector.
+           * @param {Vector2D} vec2 - The second vector.
+           * @returns {Vector2D} The result of the addition.
+           */
+          static add(vec1, vec2) {
+            return new _Vector2D(vec1.x + vec2.x, vec1.y + vec2.y);
+          }
+          /**
+           * Add a scalar value to each component of a vector and return a new Vector2D instance.
+           * @param {Vector2D} vec - The vector to which the scalar will be added.
+           * @param {number} number - The scalar value to add.
+           * @returns {Vector2D} The result of the addition.
+           */
+          static addNumber(vec, number) {
+            return new _Vector2D(vec.x + number, vec.y + number);
+          }
+          /**
+           * Subtract one vector from another and return a new Vector2D instance.
+           * @param {Vector2D} vec1 - The vector to subtract from.
+           * @param {Vector2D} vec2 - The vector to subtract.
+           * @returns {Vector2D} The result of the subtraction.
+           */
+          static sub(vec1, vec2) {
+            return new _Vector2D(vec1.x - vec2.x, vec1.y - vec2.y);
+          }
+          /**
+           * Scale a vector by a scalar value and return a new Vector2D instance.
+           * @param {Vector2D} vec1 - The vector to scale.
+           * @param {number} [number=1] - The scalar value to scale by.
+           * @returns {Vector2D} The scaled vector.
+           */
+          static scale(vec1, number = 1) {
+            return new _Vector2D(vec1.x * number, vec1.y * number);
+          }
+          /**
+           * Divide a vector by a scalar value and return a new Vector2D instance.
+           * @param {Vector2D} vec1 - The vector to divide.
+           * @param {number} [number=1] - The scalar value to divide by.
+           * @returns {Vector2D} The divided vector.
+           */
+          static div(vec1, number = 1) {
+            return new _Vector2D(vec1.x / number, vec1.y / number);
+          }
+          /**
+           * Add a polar coordinate to a vector and return a new Vector2D instance.
+           * @param {Vector2D} vec - The vector to which the polar coordinate will be added.
+           * @param {number} radius - The radius to add.
+           * @param {number} angle - The angle in radians.
+           * @returns {Vector2D} The resulting vector.
+           */
+          static addPolar(vec, radius, angle) {
+            return new _Vector2D(
+              vec.x + radius * Math.cos(angle),
+              vec.y + radius * Math.sin(angle),
+            );
+          }
+          /**
+           * Get a zero vector.
+           * @returns {Vector2D} A new Vector2D instance with `x` and `y` set to 0.
+           */
+          static get Zero() {
+            return new _Vector2D();
+          }
+          /**
+           * Get a unit vector pointing up.
+           * @returns {Vector2D} A new Vector2D instance with `x = 0` and `y = 1`.
+           */
+          static get Up() {
+            return new _Vector2D(0, 1);
+          }
+          /**
+           * Get a unit vector pointing down.
+           * @returns {Vector2D} A new Vector2D instance with `x = 0` and `y = -1`.
+           */
+          static get Down() {
+            return new _Vector2D(0, -1);
+          }
+          /**
+           * Get a unit vector pointing left.
+           * @returns {Vector2D} A new Vector2D instance with `x = -1` and `y = 0`.
+           */
+          static get Left() {
+            return new _Vector2D(-1, 0);
+          }
+          /**
+           * Get a unit vector pointing right.
+           * @returns {Vector2D} A new Vector2D instance with `x = 1` and `y = 0`.
+           */
+          static get Right() {
+            return new _Vector2D(1, 0);
+          }
+          /**
+           * Get the magnitude of the vector.
+           * @returns {number} The magnitude of the vector.
+           */
+          get magnitude() {
+            return Math.sqrt(this.x * this.x + this.y * this.y);
+          }
+          /**
+           * Set the magnitude of the vector.
+           * @param {number} magnitude - The new magnitude.
+           */
+          set magnitude(magnitude) {
+            const curMag = Math.sqrt(this.x * this.x + this.y * this.y);
+            if (curMag === 0) {
+              this.x = 0;
+              this.y = 0;
+            } else {
+              this.x = (this.x / curMag) * magnitude;
+              this.y = (this.y / curMag) * magnitude;
+            }
+          }
+          /**
+           * Get the angle of the vector in radians.
+           * @returns {number} The angle in radians.
+           */
+          get angle() {
+            return Math.atan2(this.y, this.x);
+          }
+          /**
+           * Set the angle of the vector.
+           * @param {number} angle - The new angle in radians.
+           */
+          set angle(angle) {
+            const magnitude = this.magnitude;
+            this.x = magnitude * Math.cos(angle);
+            this.y = magnitude * Math.sin(angle);
+          }
+          /**
+           * Set the `x` and `y` components of the vector.
+           * @param {number} x - The new x component.
+           * @param {number} y - The new y component.
+           */
+          set(x, y) {
+            this.x = x;
+            this.y = y;
+          }
+          /**
+           * Add another vector to this vector.
+           * @param {Vector2D} vec - The vector to add.
+           */
+          add(vec) {
+            this.x += vec.x;
+            this.y += vec.y;
+          }
+          /**
+           * Add a scalar value to each component of this vector.
+           * @param {number} number - The scalar value to add.
+           */
+          addNumber(number) {
+            this.x += number;
+            this.y += number;
+          }
+          /**
+           * Add a polar coordinate to this vector.
+           * @param {number} radius - The radius to add.
+           * @param {number} angle - The angle in radians.
+           */
+          addPolar(radius, angle) {
+            this.x += radius * Math.cos(angle);
+            this.y += radius * Math.sin(angle);
+          }
+          /**
+           * Subtract another vector from this vector.
+           * @param {Vector2D} vec - The vector to subtract.
+           */
+          sub(vec) {
+            this.x -= vec.x;
+            this.y -= vec.y;
+          }
+          /**
+           * Scale this vector by a scalar value.
+           * @param {number} number - The scalar value to scale by.
+           */
+          scale(number) {
+            this.x *= number;
+            this.y *= number;
+          }
+          /**
+           * Divide this vector by a scalar value.
+           * @param {number} number - The scalar value to divide by.
+           */
+          div(number) {
+            this.x /= number;
+            this.y /= number;
+          }
+          /**
+           * Clamp the magnitude of this vector between min and max values.
+           * If only one parameter is provided, the vector's magnitude is clamped between `-min` and `min`.
+           * @param {number} min - The minimum magnitude. If only one parameter is provided, this value is interpreted as `-min`.
+           * @param {number} [max=min] - The maximum magnitude. If not provided, the vector's magnitude is clamped between `-min` and `min`.
+           */
+          clampMag(min, max) {
+            if (typeof max === "undefined") {
+              max = min;
+              min = -min;
+            }
+            const angle = this.angle;
+            const magnitude = this.magnitude;
+            const clampedMagnitude = Math.max(min, Math.min(max, magnitude));
+            this.x = clampedMagnitude * Math.cos(angle);
+            this.y = clampedMagnitude * Math.sin(angle);
+          }
+          /**
+           * Get the unit vector (normalized) in the same direction as this vector.
+           * @returns {Vector2D} The unit vector.
+           */
+          unit() {
+            const magnitude = this.magnitude;
+            if (magnitude === 0) return new _Vector2D(0, 0);
+            return new _Vector2D(this.x / magnitude, this.y / magnitude);
+          }
+          /**
+           * Calculate the distance to another vector.
+           * @param {Vector2D} vec - The vector to calculate distance to.
+           * @returns {number} The distance.
+           */
+          distance(vec) {
+            return Math.sqrt(
+              (this.x - vec.x) * (this.x - vec.x) +
+                (this.y - vec.y) * (this.y - vec.y),
+            );
+          }
+          /**
+           * Calculate the squared distance to another vector (no square root).
+           * @param {Vector2D} vec - The vector to calculate squared distance to.
+           * @returns {number} The squared distance.
+           */
+          distanceSquared(vec) {
+            return (
+              (this.x - vec.x) * (this.x - vec.x) +
+              (this.y - vec.y) * (this.y - vec.y)
+            );
+          }
+          /**
+           * Calculate the dot product with another vector.
+           * @param {Vector2D} vec - The vector to dot product with.
+           * @returns {number} The dot product.
+           */
+          dot(vec) {
+            return this.x * vec.x + this.y * vec.y;
+          }
+          /**
+           * Rotate this vector by an angle.
+           * @param {number} angle - The angle in radians to rotate by.
+           * @returns {Vector2D} The rotated vector.
+           */
+          rotate(angle) {
+            const cos = Math.cos(angle);
+            const sin = Math.sin(angle);
+            const x = this.x * cos - this.y * sin;
+            const y = this.x * sin + this.y * cos;
+            return new _Vector2D(x, y);
+          }
+          /**
+           * Convert this vector to an object with `x`, `y`, `angle`, and `magnitude` properties.
+           * @returns {Object} The vector as an object.
+           */
+          toObject() {
+            return {
+              x: this.x,
+              y: this.y,
+              angle: this.angle,
+              magnitude: this.magnitude,
+            };
+          }
+          /**
+           * Convert this vector to a string representation.
+           * @returns {string} The string representation of the vector.
+           */
+          toString() {
+            this.toObject().toString();
+          }
+          toArray() {
+            return [this.x, this.y];
+          }
+        };
+        function getMousePos(canvas2, evt) {
+          var rect = canvas2.getBoundingClientRect();
+          const ratioComp =
+            rect.width / rect.height < canvas2.width / canvas2.height;
+          const scalingFactor = ratioComp
+            ? canvas2.height / rect.height
+            : canvas2.width / rect.width;
+          const offestX = ratioComp
+            ? ((canvas2.width / canvas2.height) * rect.height - rect.width) / 2
+            : 0;
+          const canvasX = (offestX + evt.clientX - rect.left) * scalingFactor;
+          const offestY = !ratioComp
+            ? ((canvas2.height / canvas2.width) * rect.width - rect.height) / 2
+            : 0;
+          const canvasY = (offestY + evt.clientY - rect.top) * scalingFactor;
+          return new Vector2D(canvasX, canvasY);
+        }
+        function hsvToRgb(h, s, v) {
+          var r, g, b;
+          var i = Math.floor(h * 6);
+          var f = h * 6 - i;
+          var p = v * (1 - s);
+          var q = v * (1 - f * s);
+          var t = v * (1 - (1 - f) * s);
+          switch (i % 6) {
+            case 0:
+              ((r = v), (g = t), (b = p));
+              break;
+            case 1:
+              ((r = q), (g = v), (b = p));
+              break;
+            case 2:
+              ((r = p), (g = v), (b = t));
+              break;
+            case 3:
+              ((r = p), (g = q), (b = v));
+              break;
+            case 4:
+              ((r = t), (g = p), (b = v));
+              break;
+            case 5:
+              ((r = v), (g = p), (b = q));
+              break;
+          }
+          return [r * 255, g * 255, b * 255];
+        }
+        function rgbToHex(rgb) {
+          const r = Math.max(0, Math.min(255, rgb[0]));
+          const g = Math.max(0, Math.min(255, rgb[1]));
+          const b = Math.max(0, Math.min(255, rgb[2]));
+          const rHex = r.toString(16).padStart(2, "0");
+          const gHex = g.toString(16).padStart(2, "0");
+          const bHex = b.toString(16).padStart(2, "0");
+          return `#${rHex}${gHex}${bHex}`;
+        }
+        function rgb2hsv(r, g, b) {
+          let v = Math.max(r, g, b);
+          let c = v - Math.min(r, g, b);
+          let h =
+            c &&
+            (v == r ? (g - b) / c : v == g ? 2 + (b - r) / c : 4 + (r - g) / c);
+          return [(60 * (h < 0 ? h + 6 : h)) / 360, v && c / v, v];
+        }
+        function hexToRgbArray(hex) {
+          hex = hex.replace("#", "");
+          const r = parseInt(hex.substring(0, 2), 16);
+          const g = parseInt(hex.substring(2, 4), 16);
+          const b = parseInt(hex.substring(4, 6), 16);
+          return [r, g, b];
+        }
+        function getIntercectionPoint(p1, p2, r1, r2) {
+          const { x: x1, y: y1 } = p1.toObject();
+          const { x: x2, y: y2 } = p2.toObject();
+          const d = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+          if (d > r1 + r2 || d < Math.abs(r1 - r2)) {
+            return [];
+          }
+          const a = (r1 * r1 - r2 * r2 + d * d) / (2 * d);
+          const x3 = x1 + (a * (x2 - x1)) / d;
+          const y3 = y1 + (a * (y2 - y1)) / d;
+          const h = Math.sqrt(r1 * r1 - a * a);
+          const x4_1 = x3 + (h * (y2 - y1)) / d;
+          const y4_1 = y3 - (h * (x2 - x1)) / d;
+          const x4_2 = x3 - (h * (y2 - y1)) / d;
+          const y4_2 = y3 + (h * (x2 - x1)) / d;
+          return [new Vector2D(x4_1, y4_1), new Vector2D(x4_2, y4_2)];
+        }
+        function colorNameToHex(color) {
+          var colors = {
+            aliceblue: "#f0f8ff",
+            antiquewhite: "#faebd7",
+            aqua: "#00ffff",
+            aquamarine: "#7fffd4",
+            azure: "#f0ffff",
+            beige: "#f5f5dc",
+            bisque: "#ffe4c4",
+            black: "#000000",
+            blanchedalmond: "#ffebcd",
+            blue: "#0000ff",
+            blueviolet: "#8a2be2",
+            brown: "#a52a2a",
+            burlywood: "#deb887",
+            cadetblue: "#5f9ea0",
+            chartreuse: "#7fff00",
+            chocolate: "#d2691e",
+            coral: "#ff7f50",
+            cornflowerblue: "#6495ed",
+            cornsilk: "#fff8dc",
+            crimson: "#dc143c",
+            cyan: "#00ffff",
+            darkblue: "#00008b",
+            darkcyan: "#008b8b",
+            darkgoldenrod: "#b8860b",
+            darkgray: "#a9a9a9",
+            darkgreen: "#006400",
+            darkkhaki: "#bdb76b",
+            darkmagenta: "#8b008b",
+            darkolivegreen: "#556b2f",
+            darkorange: "#ff8c00",
+            darkorchid: "#9932cc",
+            darkred: "#8b0000",
+            darksalmon: "#e9967a",
+            darkseagreen: "#8fbc8f",
+            darkslateblue: "#483d8b",
+            darkslategray: "#2f4f4f",
+            darkturquoise: "#00ced1",
+            darkviolet: "#9400d3",
+            deeppink: "#ff1493",
+            deepskyblue: "#00bfff",
+            dimgray: "#696969",
+            dodgerblue: "#1e90ff",
+            firebrick: "#b22222",
+            floralwhite: "#fffaf0",
+            forestgreen: "#228b22",
+            fuchsia: "#ff00ff",
+            gainsboro: "#dcdcdc",
+            ghostwhite: "#f8f8ff",
+            gold: "#ffd700",
+            goldenrod: "#daa520",
+            gray: "#808080",
+            green: "#008000",
+            greenyellow: "#adff2f",
+            honeydew: "#f0fff0",
+            hotpink: "#ff69b4",
+            indianred: "#cd5c5c",
+            indigo: "#4b0082",
+            ivory: "#fffff0",
+            khaki: "#f0e68c",
+            lavender: "#e6e6fa",
+            lavenderblush: "#fff0f5",
+            lawngreen: "#7cfc00",
+            lemonchiffon: "#fffacd",
+            lightblue: "#add8e6",
+            lightcoral: "#f08080",
+            lightcyan: "#e0ffff",
+            lightgoldenrodyellow: "#fafad2",
+            lightgrey: "#d3d3d3",
+            lightgreen: "#90ee90",
+            lightpink: "#ffb6c1",
+            lightsalmon: "#ffa07a",
+            lightseagreen: "#20b2aa",
+            lightskyblue: "#87cefa",
+            lightslategray: "#778899",
+            lightsteelblue: "#b0c4de",
+            lightyellow: "#ffffe0",
+            lime: "#00ff00",
+            limegreen: "#32cd32",
+            linen: "#faf0e6",
+            magenta: "#ff00ff",
+            maroon: "#800000",
+            mediumaquamarine: "#66cdaa",
+            mediumblue: "#0000cd",
+            mediumorchid: "#ba55d3",
+            mediumpurple: "#9370d8",
+            mediumseagreen: "#3cb371",
+            mediumslateblue: "#7b68ee",
+            mediumspringgreen: "#00fa9a",
+            mediumturquoise: "#48d1cc",
+            mediumvioletred: "#c71585",
+            midnightblue: "#191970",
+            mintcream: "#f5fffa",
+            mistyrose: "#ffe4e1",
+            moccasin: "#ffe4b5",
+            navajowhite: "#ffdead",
+            navy: "#000080",
+            oldlace: "#fdf5e6",
+            olive: "#808000",
+            olivedrab: "#6b8e23",
+            orange: "#ffa500",
+            orangered: "#ff4500",
+            orchid: "#da70d6",
+            palegoldenrod: "#eee8aa",
+            palegreen: "#98fb98",
+            paleturquoise: "#afeeee",
+            palevioletred: "#d87093",
+            papayawhip: "#ffefd5",
+            peachpuff: "#ffdab9",
+            peru: "#cd853f",
+            pink: "#ffc0cb",
+            plum: "#dda0dd",
+            powderblue: "#b0e0e6",
+            purple: "#800080",
+            rebeccapurple: "#663399",
+            red: "#ff0000",
+            rosybrown: "#bc8f8f",
+            royalblue: "#4169e1",
+            saddlebrown: "#8b4513",
+            salmon: "#fa8072",
+            sandybrown: "#f4a460",
+            seagreen: "#2e8b57",
+            seashell: "#fff5ee",
+            sienna: "#a0522d",
+            silver: "#c0c0c0",
+            skyblue: "#87ceeb",
+            slateblue: "#6a5acd",
+            slategray: "#708090",
+            snow: "#fffafa",
+            springgreen: "#00ff7f",
+            steelblue: "#4682b4",
+            tan: "#d2b48c",
+            teal: "#008080",
+            thistle: "#d8bfd8",
+            tomato: "#ff6347",
+            turquoise: "#40e0d0",
+            violet: "#ee82ee",
+            wheat: "#f5deb3",
+            white: "#ffffff",
+            whitesmoke: "#f5f5f5",
+            yellow: "#ffff00",
+            yellowgreen: "#9acd32",
+          };
+          if (typeof colors[color.toLowerCase()] != "undefined")
+            return colors[color.toLowerCase()];
+          return color;
+        }
+
+        // public/scipts/simulation/animals.js
+        var BodyBase = class {
+          /**
+           * Creates an instance of BodyBase.
+           * @param {number[]} radiusesArray - Array of radiuses for the body segments.
+           * @param {number} spacing - Spacing between the segments.
+           * @param {number} maxAngle - Maximum angle allowed between segments.
+           * @param {Vector2D} [basisPosition=Vector2D.Zero] - Initial position of the body.
+           * @param {number} [headPoints=5] - Number of points for the head shape.
+           * @param {number} [tailPoints=5] - Number of points for the tail shape.
+           * @param {number} [eyesAngle=90] - Angle between the eyes in degrees.
+           * @param {number} [eyesRadius=5] - Radius of the eyes.
+           * @param {number} [eyesPosRadius=12] - Radius for the position of the eyes.
+           * @param {Object} [style={}] - Style settings for the body.
+           * @param {string} [style.outline="white"] - Color of the outline.
+           * @param {number} [style.outlineWidth=2] - Width of the outline.
+           * @param {string} [style.fill="random"] - Fill color of the body. Allowed values: a color name, a hex code, or the keyword "random". If "random" is used, a random fill is assigned with HSV equivalent `[0 to 1), 0.6, 0.9`.
+           * @param {string} [style.eyesColor="black"] - Color of the eyes.
+           * @param {number} [scale=1] - Scale of the body.
+           * @param {boolean} [displayQuads=true] - Whether to display body segments as quads.
+           */
+          constructor(
+            radiusesArray,
+            spacing,
+            maxAngle,
+            basisPosition = Vector2D.Zero,
+            headPoints = 5,
+            tailPoints = 5,
+            eyesAngle = 90,
+            eyesRadius = 5,
+            eyesPosRadius = 12,
+            style2 = {
+              outline: "white",
+              outlineWidth: 2,
+              fill: "random",
+              eyesColor: "black",
+            },
+            scale = 1,
+            displayQuads = true,
+          ) {
+            if (style2.fill === "random") {
+              style2.fillHSV = [Math.random(), 0.6, 0.9];
+              const color = hsvToRgb(...style2.fillHSV).map((num) =>
+                Math.floor(num),
+              );
+              style2.fill = rgbToHex(color);
+            } else {
+              style2.fill = colorNameToHex(style2.fill);
+            }
+            this.chainLinks;
+            this.spacing;
+            this.maxAngle;
+            this.totalCurvature = 0;
+            this.headPoints;
+            this.tailPoints;
+            this.eyesAngle = eyesAngle;
+            this.eyesRadius = eyesRadius;
+            this.eyesPosRadius = eyesPosRadius;
+            this.style = style2;
+            radiusesArray =
+              radiusesArray.length == 0
+                ? [10, 10]
+                : radiusesArray.length == 1
+                  ? [radiusesArray[0], radiusesArray[0]]
+                  : radiusesArray;
+            this.setCustomBodyShape(
+              radiusesArray,
+              spacing,
+              maxAngle,
+              headPoints,
+              tailPoints,
+              basisPosition,
+            );
+            this._scale = Math.abs(scale);
+            this.displayQuads = displayQuads;
+            this.graphicContainer = new PIXI.Container();
+            this.graficElements = {};
+            this.bodyPoints = [];
+          }
+          /**
+           * Sets a custom body shape based on the provided parameters.
+           * @param {number[]} radiusesArray - Array of radiuses for the body segments.
+           * @param {number} spacing - Spacing between the segments.
+           * @param {number} maxAngle - Maximum angle allowed between segments.
+           * @param {number} headPoints - Number of points for the head shape.
+           * @param {number} tailPoints - Number of points for the tail shape.
+           * @param {Vector2D} [pos=Vector2D.Zero] - Initial position of the body.
+           */
+          setCustomBodyShape(
+            radiusesArray,
+            spacing,
+            maxAngle,
+            headPoints,
+            tailPoints,
+            pos = Vector2D.Zero,
+          ) {
+            let currentPos = pos;
+            if (typeof this.chainLinks !== "undefined") {
+              currentPos = this.chainLinks[0].pos;
+            }
+            this.chainLinks = radiusesArray.map((radius, index) => {
+              const posY = currentPos.y + spacing * index;
+              const pos2 = new Vector2D(currentPos.x, posY);
+              return new ChainLink(radius, pos2);
+            });
+            this.spacing = spacing;
+            this.maxAngle = maxAngle;
+            this.headPoints = Math.max(2, headPoints);
+            this.tailPoints = Math.max(2, tailPoints);
+          }
+          /**
+           * Updates the positions and directions of the body segments.
+           * @param {Vector2D} pos - New position for the first segment.
+           */
+          update(pos) {
+            const link1 = this.chainLinks[0];
+            const link2 = this.chainLinks[1];
+            const currentAngle = Vector2D.sub(link2.pos, pos).angle;
+            link1.pos = pos;
+            link1.directionAngle = currentAngle;
+            link2.pos = Vector2D.addPolar(
+              link1.pos,
+              this.spacing * this.scale,
+              currentAngle,
+            );
+            link2.directionAngle = currentAngle;
+            for (let index = 2; index < this.chainLinks.length; index++) {
+              this.chainLinks[index].update(
+                this.chainLinks[index - 1],
+                this.spacing * this.scale,
+                this.chainLinks[index - 2],
+                this.maxAngle,
+              );
+            }
+            this.totalCurvature = this.getTotalCurvature();
+          }
+          /**
+           * Displays the outline of each body segment on the canvas.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+           */
+          displaySkeleton(ctx) {
+            this.chainLinks.forEach((link) =>
+              link.displayOutline(ctx, this.scale),
+            );
+            this.chainLinks.forEach((link) => {
+              const poligonPoints = link.getSidePoints(this.scale);
+              const colorArray = ["red", "blue"];
+              poligonPoints.forEach((point, index) => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 2, 0, Math.PI * 2);
+                ctx.fillStyle = colorArray[index];
+                ctx.fill();
+                ctx.closePath();
+              });
+            });
+          }
+          /**
+           * Displays the head or tail of the body on the canvas.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+           * @param {boolean} isHead - Whether to display the head (`true`) or tail (`false`).
+           */
+          displayBodyEnd(ctx, isHead) {
+            ctx.strokeStyle = this.style.outline;
+            ctx.lineWidth = this.style.outlineWidth;
+            ctx.fillStyle = this.style.fill;
+            const endPoints = this.getEndPoints(isHead);
+            const start = endPoints[0];
+            const end = endPoints[endPoints.length - 1];
+            endPoints[0].x = start.y > end.y ? start.x + 0.5 : start.x - 0.5;
+            endPoints[0].y = start.x > end.x ? start.y - 0.5 : start.y + 0.5;
+            endPoints[endPoints.length - 1].x =
+              start.y > end.y ? end.x + 0.5 : end.x - 0.5;
+            endPoints[endPoints.length - 1].y =
+              start.x > end.x ? end.y - 0.5 : end.y + 0.5;
+            ctx.beginPath();
+            ctx.moveTo(endPoints[0].x, endPoints[0].y);
+            for (let i = 1; i < endPoints.length; i++) {
+              ctx.lineTo(endPoints[i].x, endPoints[i].y);
+            }
+            ctx.closePath();
+            ctx.fill();
+            if (this.style.outlineWidth > 0) {
+              ctx.beginPath();
+              ctx.moveTo(endPoints[0].x, endPoints[0].y);
+              for (let i = 1; i < endPoints.length; i++) {
+                ctx.lineTo(endPoints[i].x, endPoints[i].y);
+              }
+              ctx.stroke();
+              ctx.closePath();
+            }
+          }
+          /**
+           * Displays the entire body on the canvas, including the head and tail.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+           */
+          display(ctx) {
+            ctx.strokeStyle = this.style.outline;
+            ctx.lineWidth = this.style.outlineWidth;
+            ctx.fillStyle = this.style.fill;
+            this.displayBodyEnd(ctx, false);
+            if (this.displayQuads) this.displayBodyQuads(ctx);
+            else this.displayBodySingleShape(ctx);
+            this.displayBodyEnd(ctx, true);
+            this.displayEyes(ctx);
+          }
+          /**
+           * Displays the body segments as quads on the canvas. Resource intensive, but don't have visual glitches on body overlap.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+           */
+          displayBodyQuads(ctx) {
+            const sidePoints = this.chainLinks
+              .map((link) => link.getSidePoints(this.scale))
+              .reverse();
+            for (let i = 1; i < sidePoints.length; i++) {
+              const vert1 = sidePoints[i - 1];
+              const vert2 = sidePoints[i];
+              ctx.beginPath();
+              ctx.moveTo(vert1[0].x, vert1[0].y);
+              ctx.lineTo(vert1[1].x, vert1[1].y);
+              const vert2new = [
+                {
+                  x:
+                    vert1[0].x < vert2[0].x
+                      ? vert2[0].x + 0.5
+                      : vert2[0].x - 0.5,
+                  y:
+                    vert1[0].y < vert2[0].y
+                      ? vert2[0].y + 0.5
+                      : vert2[0].y - 0.5,
+                },
+                {
+                  x:
+                    vert1[1].x < vert2[1].x
+                      ? vert2[1].x + 0.5
+                      : vert2[1].x - 0.5,
+                  y:
+                    vert1[1].y < vert2[1].y
+                      ? vert2[1].y + 0.5
+                      : vert2[1].y - 0.5,
+                },
+              ];
+              ctx.lineTo(vert2new[1].x, vert2new[1].y);
+              ctx.lineTo(vert2new[0].x, vert2new[0].y);
+              ctx.closePath();
+              ctx.fill();
+              if (this.style.outlineWidth > 0) {
+                ctx.beginPath();
+                ctx.moveTo(vert1[1].x, vert1[1].y);
+                ctx.lineTo(vert2[1].x, vert2[1].y);
+                ctx.stroke();
+                ctx.closePath();
+                ctx.beginPath();
+                ctx.moveTo(vert1[0].x, vert1[0].y);
+                ctx.lineTo(vert2[0].x, vert2[0].y);
+                ctx.stroke();
+                ctx.closePath();
+              }
+            }
+          }
+          /**
+           * Displays the body as a single shape on the canvas. Fast, but has visual glitches on body overlaps.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+           */
+          displayBodySingleShape(ctx) {
+            const sidePoints = this.chainLinks.map((link) =>
+              link.getSidePoints(this.scale),
+            );
+            const toBack = sidePoints.map((points) => points[0]);
+            const toHead = sidePoints.map((points) => points[1]);
+            ctx.beginPath(ctx);
+            ctx.moveTo(toBack[0].x, toBack[0].y);
+            for (let i = 1; i < toBack.length; i++)
+              ctx.lineTo(toBack[i].x, toBack[i].y);
+            for (let i = toBack.length - 1; i >= 0; i--)
+              ctx.lineTo(toHead[i].x, toHead[i].y);
+            ctx.closePath(ctx);
+            ctx.fill();
+            if (this.style.outlineWidth > 0) {
+              ctx.beginPath(ctx);
+              ctx.moveTo(toBack[0].x, toBack[0].y);
+              for (let i = 1; i < toBack.length; i++)
+                ctx.lineTo(toBack[i].x, toBack[i].y);
+              ctx.stroke();
+              ctx.closePath(ctx);
+              ctx.beginPath(ctx);
+              ctx.moveTo(
+                toHead[toHead.length - 1].x,
+                toHead[toHead.length - 1].y,
+              );
+              for (let i = toHead.length - 2; i >= 0; i--)
+                ctx.lineTo(toHead[i].x, toHead[i].y);
+              ctx.stroke();
+              ctx.closePath(ctx);
+            }
+          }
+          /**
+           * Displays the eyes of the body on the canvas.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+           */
+          displayEyes(ctx) {
+            const link = this.chainLinks[0];
+            const eyeAngle = ((180 - this.eyesAngle) * Math.PI) / 180;
+            const radius = this.eyesPosRadius * this.scale;
+            const eyes = [
+              Vector2D.addPolar(
+                link.pos,
+                radius,
+                link.directionAngle + eyeAngle,
+              ),
+              Vector2D.addPolar(
+                link.pos,
+                radius,
+                link.directionAngle - eyeAngle,
+              ),
+            ];
+            ctx.fillStyle = this.style.eyesColor;
+            eyes.forEach((eye) => {
+              ctx.beginPath();
+              ctx.arc(
+                eye.x,
+                eye.y,
+                this.eyesRadius * this.scale,
+                0,
+                Math.PI * 2,
+              );
+              ctx.fill();
+              ctx.closePath();
+            });
+          }
+          /**
+           * Gets the end points (head or tail) of the body.
+           * @param {boolean} isHead - Whether to get the head points (`true`) or tail points (`false`).
+           * @returns {Vector2D[]} - Array of end points.
+           */
+          getEndPoints(isHead) {
+            const link =
+              this.chainLinks[isHead ? 0 : this.chainLinks.length - 1];
+            const n = isHead ? this.headPoints : this.tailPoints;
+            const points = [];
+            const angleStep = Math.PI / (n - 1);
+            for (let i = 0; i < n; i++) {
+              const angle =
+                link.directionAngle +
+                (Math.PI / 2) * (isHead ? 1 : -1) +
+                i * angleStep;
+              points.push(
+                Vector2D.addPolar(link.pos, link.radius * this.scale, angle),
+              );
+            }
+            return points;
+          }
+          /**
+           * Calculates the total curvature of the body.
+           * @returns {number} - The total curvature, normalized between -1 and 1.
+           */
+          getTotalCurvature() {
+            const maxCurvature = this.maxAngle * (this.chainLinks.length - 2);
+            let curCurvature = 0;
+            for (let i = 2; i < this.chainLinks.length; i++) {
+              const link1 = this.chainLinks[i - 1];
+              const link2 = this.chainLinks[i];
+              let difference =
+                (link2.directionAngle * 180) / Math.PI -
+                (link1.directionAngle * 180) / Math.PI;
+              difference = difference > 180 ? difference - 360 : difference;
+              difference = difference < -180 ? difference + 360 : difference;
+              curCurvature += difference;
+            }
+            return Math.min(Math.max(curCurvature / maxCurvature, -1), 1);
+          }
+          set scale(scale) {
+            this._scale = Math.abs(scale);
+          }
+          get scale() {
+            return this._scale;
+          }
+          /**
+           * Initializes the Pixi.js graphics for the body and eyes.
+           */
+          initPixiGrafics() {
+            const sidePoints = this.chainLinks.map((link) =>
+              link.getSidePoints(this.scale),
+            );
+            const toBack = sidePoints
+              .map((points) => points[0].toArray())
+              .flat(1);
+            const toHead = sidePoints
+              .map((points) => points[1].toArray())
+              .reverse()
+              .flat(1);
+            let head = this.getEndPoints(true);
+            head = head
+              .slice(1, head.length - 1)
+              .map((points) => points.toArray())
+              .reverse()
+              .flat(1);
+            let tail = this.getEndPoints(false);
+            tail = tail
+              .slice(1, tail.length - 1)
+              .map((points) => points.toArray())
+              .reverse()
+              .flat(1);
+            this.bodyPoints = toBack.concat(tail).concat(toHead).concat(head);
+            const body = new PIXI.Graphics();
+            body.poly(this.bodyPoints);
+            body.fill(this.style.fill);
+            if (this.style.outlineWidth > 0) {
+              body.stroke({
+                width: this.style.outlineWidth,
+                color: this.style.outline,
+              });
+            }
+            this.graphicContainer.addChild(body);
+            this.graficElements.body = body;
+            const eyeAngle = ((180 - this.eyesAngle) * Math.PI) / 180;
+            const radius = this.eyesPosRadius * this.scale;
+            const eyes = [
+              Vector2D.addPolar(Vector2D.Zero, radius, eyeAngle),
+              Vector2D.addPolar(Vector2D.Zero, radius, -eyeAngle),
+            ];
+            const eyeCont = new PIXI.Container();
+            const eyeLeft = new PIXI.Graphics();
+            eyeLeft.circle(eyes[0].x, eyes[0].y, this.eyesRadius);
+            eyeLeft.fill(this.style.eyesColor);
+            eyeCont.addChild(eyeLeft);
+            const eyeRight = new PIXI.Graphics();
+            eyeRight.circle(eyes[1].x, eyes[1].y, this.eyesRadius);
+            eyeRight.fill(this.style.eyesColor);
+            eyeCont.addChild(eyeRight);
+            this.graficElements.eyes = eyeCont;
+            this.graphicContainer.addChild(eyeCont);
+          }
+          /**
+           * Updates the Pixi.js graphics for the body and eyes.
+           */
+          updatePixiGrafics() {
+            this.updatePixiSingle();
+            this.updatePixiEyes();
+          }
+          /**
+           * Updates the Pixi.js graphics for the body segments as quads.
+           * TODO: implement method
+           */
+          updatePixiQuads() {}
+          /**
+           * Updates the Pixi.js graphics for the body as a single shape.
+           */
+          updatePixiSingle() {
+            const sidePoints = this.chainLinks.map((link) =>
+              link.getSidePoints(this.scale),
+            );
+            const t = this.getEndPoints(false);
+            const h = this.getEndPoints(true);
+            let offset = 0;
+            for (let i = 0; i < sidePoints.length; i++) {
+              this.bodyPoints[2 * i] = sidePoints[i][1].x;
+              this.bodyPoints[2 * i + 1] = sidePoints[i][1].y;
+            }
+            offset += sidePoints.length;
+            for (let i = 0; i < 0 + t.length - 2; i++) {
+              this.bodyPoints[2 * (i + offset)] = t[i + 1].x;
+              this.bodyPoints[2 * (i + offset) + 1] = t[i + 1].y;
+            }
+            offset += t.length - 2;
+            for (let i = 0; i < sidePoints.length; i++) {
+              this.bodyPoints[2 * (i + offset)] =
+                sidePoints[sidePoints.length - i - 1][0].x;
+              this.bodyPoints[2 * (i + offset) + 1] =
+                sidePoints[sidePoints.length - i - 1][0].y;
+            }
+            offset += sidePoints.length;
+            for (let i = 0; i < 0 + h.length - 2; i++) {
+              this.bodyPoints[2 * (i + offset)] = h[i + 1].x;
+              this.bodyPoints[2 * (i + offset) + 1] = h[i + 1].y;
+            }
+            const body = this.graficElements.body;
+            body.clear();
+            body.poly(this.bodyPoints);
+            body.fill(this.style.fill);
+            if (this.style.outlineWidth > 0) {
+              body.stroke({
+                width: this.style.outlineWidth,
+                color: this.style.outline,
+              });
+            }
+          }
+          /**
+           * Updates the position and rotation of the eyes in the Pixi.js graphics.
+           */
+          updatePixiEyes() {
+            const link = this.chainLinks[0];
+            this.graficElements.eyes.position.set(link.pos.x, link.pos.y);
+            this.graficElements.eyes.rotation = link.directionAngle;
+          }
+          /**
+           * Sets style for the body base.
+           */
+          setStyle(style2) {
+            if (style2.fill === "random") {
+              style2.fillHSV = [Math.random(), 0.6, 0.9];
+              const color = hsvToRgb(...style2.fillHSV).map((num) =>
+                Math.floor(num),
+              );
+              style2.fill = rgbToHex(color);
+            } else {
+              style2.fill = colorNameToHex(style2.fill);
+            }
+            this.style.fill = style2.fill;
+            this.style.outline = style2.outline;
+            this.style.outlineWidth = style2.outlineWidth;
+            this.style.eyesColor = style2.eyesColor;
+            if (Object.keys(this.graficElements).length !== 0) {
+              const eyeAngle = ((180 - this.eyesAngle) * Math.PI) / 180;
+              const radius = this.eyesPosRadius * this.scale;
+              const eyes = [
+                Vector2D.addPolar(Vector2D.Zero, radius, eyeAngle),
+                Vector2D.addPolar(Vector2D.Zero, radius, -eyeAngle),
+              ];
+              const gEyes = this.graficElements.eyes.children;
+              gEyes[0].clear();
+              gEyes[0].circle(eyes[0].x, eyes[0].y, this.eyesRadius);
+              gEyes[0].fill(this.style.eyesColor);
+              gEyes[1].clear();
+              gEyes[1].circle(eyes[1].x, eyes[1].y, this.eyesRadius);
+              gEyes[1].fill(this.style.eyesColor);
+            }
+          }
+          destroy() {
+            if (this.graphicContainer) {
+              if (this.graphicContainer.parent) {
+                this.graphicContainer.parent.removeChild(this.graphicContainer);
+              }
+              this.graphicContainer.destroy({
+                children: true,
+                texture: true,
+                baseTexture: true,
+              });
+              this.graphicContainer = null;
+            }
+          }
+        };
+        var ChainLink = class {
+          /**
+           * Creates an instance of ChainLink.
+           * @param {number} radius - The radius of the chain link.
+           * @param {Vector2D} [pos=Vector2D.Zero] - The initial position of the chain link.
+           */
+          constructor(radius, pos = Vector2D.Zero) {
+            this.radius = radius;
+            this.pos = Vector2D.fromObject(pos);
+            this.directionAngle = -Math.PI / 2;
+          }
+          /**
+           * Updates the position of the chain link based on angle and distance constraints.
+           * @param {ChainLink} distConstrainer - The chain link that constrains the distance.
+           * @param {number} distance - The desired distance from the distConstrainer.
+           * @param {ChainLink} angleConstrainer - The chain link that constrains the angle.
+           * @param {number} [maxAngle=0] - The maximum allowed angle difference in degrees.
+           */
+          update(distConstrainer, distance, angleConstrainer, maxAngle = 0) {
+            const baseVector = Vector2D.sub(
+              angleConstrainer.pos,
+              distConstrainer.pos,
+            );
+            const anchorAngle = baseVector.angle;
+            const vector = Vector2D.sub(this.pos, distConstrainer.pos);
+            const currentAngle = vector.angle;
+            this.directionAngle = currentAngle;
+            let angleDiff = currentAngle - anchorAngle;
+            if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+            else if (angleDiff <= -Math.PI) angleDiff += 2 * Math.PI;
+            const maxAngleRad = ((180 - maxAngle) * Math.PI) / 180;
+            const newAngle =
+              angleDiff < 0
+                ? Math.min(angleDiff, -maxAngleRad) + anchorAngle
+                : Math.max(angleDiff, maxAngleRad) + anchorAngle;
+            this.pos = Vector2D.addPolar(
+              distConstrainer.pos,
+              distance,
+              newAngle,
+            );
+          }
+          /**
+           * Returns the side points of the chain link based on its direction angle and scale.
+           * @param {number} scale - The scale factor for the radius.
+           * @returns {Vector2D[]} The side points of the chain link.
+           */
+          getSidePoints(scale) {
+            const radius = this.radius * scale;
+            return [
+              Vector2D.addPolar(
+                this.pos,
+                radius,
+                this.directionAngle + Math.PI / 2,
+              ),
+              Vector2D.addPolar(
+                this.pos,
+                radius,
+                this.directionAngle - Math.PI / 2,
+              ),
+            ];
+          }
+          /**
+           * Displays the outline of the chain link on the given canvas context.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+           * @param {number} scale - The scale factor for the radius.
+           */
+          displayOutline(ctx, scale) {
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(
+              this.pos.x,
+              this.pos.y,
+              this.radius * scale,
+              0,
+              Math.PI * 2,
+              true,
+            );
+            ctx.stroke();
+            ctx.closePath();
+          }
+        };
+        function SideFin(link, angle, radiusX, radiusY) {
+          this.link = link;
+          this.angle = angle;
+          this.radiusX = radiusX;
+          this.radiusY = radiusY;
+        }
+        var Fish = class extends BodyBase {
+          /**
+           * Creates an instance of Fish.
+           * @param {Vector2D} [basisPosition=Vector2D.Zero] - The initial position of the fish.
+           * @param {Object} [style={}] - The styling options for the fish.
+           * @param {string} [style.outline="white"] - The outline color of the fish.
+           * @param {number} [style.outlineWidth=2] - The outline width of the fish.
+           * @param {string} [style.fill="random"] - The fill color of the body. Allowed values: color name, hex code, or "random".
+           * @param {string} [style.eyesColor="black"] - The color of the eyes.
+           * @param {number} [scale=1] - The scale of the fish.
+           * @param {boolean} [isLowRes=true] - Whether to use low resolution for the fish.
+           */
+          constructor(
+            basisPosition = Vector2D.Zero,
+            style2 = {
+              outline: "white",
+              outlineWidth: 2,
+              fill: "random",
+              eyesColor: "black",
+            },
+            scale = 1,
+            isLowRes = true,
+          ) {
+            const radiusArray = isLowRes
+              ? [14, 16.25, 17, 16.25, 14, 10, 7.5, 5.5]
+              : [14, 16, 16.5, 17, 17, 16.5, 16, 15, 13, 11, 9, 8, 7, 6, 5];
+            const dist = isLowRes ? 16 : 8;
+            const ang = isLowRes ? 32 : 16;
+            const finLinks = isLowRes ? [3, 6, 3, 7] : [5, 12, 5, 12];
+            super(
+              radiusArray,
+              dist,
+              ang,
+              basisPosition,
+              10,
+              7,
+              80,
+              2.5,
+              11,
+              style2,
+              scale,
+              false,
+            );
+            if (!this.style.finFill) {
+              if (this.style.fillHSV) {
+                const hsv = this.style.fillHSV;
+                let color = hsvToRgb(hsv[0], hsv[1] - 0.3, hsv[2]);
+                color = color.map((num) => Math.floor(num));
+                style2.finFill = rgbToHex(color);
+              } else {
+                style2.finFill = this.style.fill;
+                if (this.style.fill[0] === "#") {
+                  const colorArr = hexToRgbArray(this.style.fill).map(
+                    (v) => v / 256,
+                  );
+                  const hsv = rgb2hsv(...colorArr);
+                  let color = hsvToRgb(
+                    hsv[0],
+                    hsv[1] * 0.7,
+                    Math.max(hsv[2] * 1.3, 1),
+                  );
+                  color = color.map((num) => Math.floor(num));
+                  style2.finFill = rgbToHex(color);
+                }
+              }
+            }
+            this.sideFins = [
+              new SideFin(finLinks[0], 45, 16, 8),
+              new SideFin(finLinks[1], 45, 12, 4),
+            ];
+            this.topFin = { linkRange: [finLinks[2], finLinks[3]], offset: 14 };
+            this.tailFin = {
+              length: 32,
+              offsetMinEnd: 5,
+              offsetMaxEnd: 16,
+              offsetStart: 2.5,
+            };
+            this.update(basisPosition);
+          }
+          /**
+           * Displays the fish on the provided canvas context.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+           */
+          display(ctx) {
+            ctx.fillStyle = this.style.finFill
+              ? this.style.finFill
+              : this.style.fill;
+            ctx.strokeStyle = this.style.outline;
+            ctx.lineWidth = this.style.outlineWidth;
+            this.displaySideFins(ctx);
+            this.displayTailFin(ctx);
+            super.display(ctx);
+            ctx.fillStyle = this.style.finFill
+              ? this.style.finFill
+              : this.style.fill;
+            ctx.strokeStyle = this.style.outline;
+            ctx.lineWidth = this.style.outlineWidth;
+            this.displayTopFin(ctx);
+          }
+          /**
+           * Displays the side fins of the fish.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+           */
+          displaySideFins(ctx) {
+            this.sideFins.forEach((finData) => {
+              const link = this.chainLinks[finData.link];
+              const dirAngle = link.directionAngle;
+              const directionLink = this.chainLinks[finData.link - 1];
+              const radius = link.radius * this.scale;
+              const fin1Pos = Vector2D.addPolar(
+                link.pos,
+                radius,
+                dirAngle + Math.PI / 2,
+              );
+              const fin2Pos = Vector2D.addPolar(
+                link.pos,
+                radius,
+                dirAngle - Math.PI / 2,
+              );
+              const fins = [fin1Pos, fin2Pos];
+              const rotations = [
+                directionLink.directionAngle + (finData.angle * Math.PI) / 180,
+                directionLink.directionAngle - (finData.angle * Math.PI) / 180,
+              ];
+              fins.forEach((fin, index) => {
+                ctx.beginPath();
+                ctx.ellipse(
+                  fin.x,
+                  fin.y,
+                  finData.radiusX * this.scale,
+                  finData.radiusY * this.scale,
+                  rotations[index],
+                  0,
+                  Math.PI * 2,
+                );
+                ctx.fill();
+                if (this.style.outlineWidth > 0) {
+                  ctx.stroke();
+                }
+                ctx.closePath();
+              });
+            });
+          }
+          /**
+           * Displays the top fin of the fish.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+           */
+          displayTopFin(ctx) {
+            const { spine, control } = this.getTopPoints();
+            ctx.moveTo(spine[0].x, spine[0].y);
+            ctx.beginPath();
+            for (let i = 0; i < spine.length; i++) {
+              ctx.lineTo(spine[i].x, spine[i].y);
+            }
+            ctx.quadraticCurveTo(control.x, control.y, spine[0].x, spine[0].y);
+            ctx.fill();
+            if (this.style.outlineWidth > 0) {
+              ctx.stroke();
+            }
+            ctx.closePath();
+          }
+          /**
+           * Displays the tail fin of the fish.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context.
+           */
+          displayTailFin(ctx) {
+            const points = this.getTailPoints();
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            ctx.quadraticCurveTo(
+              points[1].x,
+              points[1].y,
+              points[2].x,
+              points[2].y,
+            );
+            ctx.lineTo(points[3].x, points[3].y);
+            ctx.quadraticCurveTo(
+              points[4].x,
+              points[4].y,
+              points[5].x,
+              points[5].y,
+            );
+            ctx.closePath();
+            ctx.fill();
+            if (this.style.outlineWidth > 0) {
+              ctx.stroke();
+            }
+          }
+          /**
+           * Calculates the points defining the tail fin of the fish.
+           * @returns {Vector2D[]} An array of points representing the tail fin.
+           */
+          getTailPoints() {
+            const lastLink = this.chainLinks[this.chainLinks.length - 1];
+            const length = this.tailFin.length * this.scale;
+            const start = lastLink.pos;
+            const end = Vector2D.addPolar(
+              start,
+              length,
+              lastLink.directionAngle,
+            );
+            const mid = Vector2D.add(start, end);
+            mid.div(2);
+            const dirVec = Vector2D.sub(start, end);
+            const unitVector = dirVec.unit();
+            const perpVector = new Vector2D(-unitVector.y, unitVector.x);
+            const offsetEndMin =
+              this.totalCurvature * this.tailFin.offsetMinEnd * this.scale;
+            const endMin = Vector2D.sub(
+              end,
+              Vector2D.scale(perpVector, offsetEndMin),
+            );
+            const offsetEndMax =
+              this.totalCurvature * this.tailFin.offsetMaxEnd * this.scale;
+            const endMax = Vector2D.sub(
+              end,
+              Vector2D.scale(perpVector, offsetEndMax),
+            );
+            const offsetStart =
+              this.totalCurvature * this.tailFin.offsetStart * this.scale;
+            const startMin = Vector2D.add(
+              start,
+              Vector2D.scale(perpVector, offsetStart),
+            );
+            const startMax = Vector2D.sub(
+              start,
+              Vector2D.scale(perpVector, offsetStart),
+            );
+            return [startMin, mid, endMin, endMax, mid, startMax];
+          }
+          /**
+           * Calculates the points defining the top fin of the fish.
+           * @returns {Object} An object containing the `spine` points and `control` point for the top fin.
+           */
+          getTopPoints() {
+            const finLinks = this.chainLinks
+              .slice(...this.topFin.linkRange)
+              .map((link) => link.pos);
+            const point1 = finLinks[0];
+            const point2 = finLinks[finLinks.length - 1];
+            const offset =
+              this.topFin.offset * this.totalCurvature * this.scale;
+            const midPoint = Vector2D.add(point1, point2);
+            midPoint.scale(0.5);
+            const dirVec = Vector2D.sub(point1, point2);
+            const unitVector = dirVec.unit();
+            const perpVector = new Vector2D(-unitVector.y, unitVector.x);
+            const controlPoint = Vector2D.add(
+              midPoint,
+              Vector2D.scale(perpVector, offset),
+            );
+            return { spine: finLinks, control: controlPoint };
+          }
+          /**
+           * Initializes the PIXI graphics for the fish.
+           */
+          initPixiGrafics() {
+            super.initPixiGrafics();
+            this.graficElements.sideFins = [];
+            this.sideFins.forEach((finData) => {
+              const link = this.chainLinks[finData.link];
+              const finsContanier = new PIXI.Container();
+              const finLeft = new PIXI.Graphics();
+              finLeft.ellipse(
+                0,
+                0,
+                finData.radiusX * this.scale,
+                finData.radiusY * this.scale,
+              );
+              finLeft.position.set(0, link.radius * this.scale);
+              finLeft.angle = finData.angle;
+              finLeft.fill(this.style.finFill);
+              if (this.style.outlineWidth > 0) {
+                finLeft.stroke({
+                  width: this.style.outlineWidth,
+                  color: this.style.outline,
+                });
+              }
+              const finRight = new PIXI.Graphics();
+              finRight.ellipse(
+                0,
+                0,
+                finData.radiusX * this.scale,
+                finData.radiusY * this.scale,
+              );
+              finRight.position.set(0, -link.radius * this.scale);
+              finRight.angle = -finData.angle;
+              finRight.fill(this.style.finFill);
+              if (this.style.outlineWidth > 0) {
+                finRight.stroke({
+                  width: this.style.outlineWidth,
+                  color: this.style.outline,
+                });
+              }
+              finsContanier.addChild(finLeft);
+              finsContanier.addChild(finRight);
+              this.graficElements.sideFins.push(finsContanier);
+              this.graphicContainer.addChildAt(finsContanier, 0);
+            });
+            const tailFin = new PIXI.Graphics();
+            this.graficElements.tailFin = tailFin;
+            this.graphicContainer.addChildAt(tailFin, 0);
+            const topFin = new PIXI.Graphics();
+            this.graficElements.topFin = topFin;
+            this.graphicContainer.addChild(topFin);
+            this.updatePixiGrafics();
+          }
+          /**
+           * Updates the PIXI graphics for the fish.
+           */
+          updatePixiGrafics() {
+            super.updatePixiGrafics();
+            this.sideFins.forEach((finData, index) => {
+              const link = this.chainLinks[finData.link];
+              const link2 = this.chainLinks[finData.link - 1];
+              const container = this.graficElements.sideFins[index];
+              container.position.set(link.pos.x, link.pos.y);
+              container.rotation = link2.directionAngle;
+            });
+            const points = this.getTailPoints();
+            const tailFin = this.graficElements.tailFin;
+            tailFin.clear();
+            tailFin.moveTo(points[0].x, points[0].y);
+            tailFin.quadraticCurveTo(
+              points[1].x,
+              points[1].y,
+              points[2].x,
+              points[2].y,
+            );
+            tailFin.lineTo(points[3].x, points[3].y);
+            tailFin.quadraticCurveTo(
+              points[4].x,
+              points[4].y,
+              points[5].x,
+              points[5].y,
+            );
+            tailFin.fill(this.style.finFill);
+            if (this.style.outlineWidth > 0) {
+              tailFin.stroke({
+                width: this.style.outlineWidth,
+                color: this.style.outline,
+                cap: "round",
+              });
+            }
+            const topFin = this.graficElements.topFin;
+            const { spine, control } = this.getTopPoints();
+            topFin.clear();
+            topFin.moveTo(spine[0].x, spine[0].y);
+            for (let i = 0; i < spine.length; i++) {
+              topFin.lineTo(spine[i].x, spine[i].y);
+            }
+            topFin.quadraticCurveTo(
+              control.x,
+              control.y,
+              spine[0].x,
+              spine[0].y,
+            );
+            topFin.fill(this.style.finFill);
+            if (this.style.outlineWidth > 0) {
+              topFin.stroke({
+                width: this.style.outlineWidth,
+                color: this.style.outline,
+              });
+            }
+          }
+          /**
+           * Sets style for the fish.
+           * @param {Object} style - Fish styling object.
+           */
+          setStyle(style2) {
+            super.setStyle(style2);
+            if (!style2.finFill) {
+              this.style.finFill = this.style.fill;
+              if (this.style.fill[0] === "#") {
+                const colorArr = hexToRgbArray(this.style.fill).map(
+                  (v) => v / 256,
+                );
+                const hsv = rgb2hsv(...colorArr);
+                let color = hsvToRgb(
+                  hsv[0],
+                  hsv[1] * 0.7,
+                  Math.max(hsv[2] * 1.3, 1),
+                );
+                color = color.map((num) => Math.floor(num));
+                this.style.finFill = rgbToHex(color);
+              }
+            } else {
+              this.style.finFill = style2.finFill;
+            }
+            if (Object.keys(this.graficElements).length !== 0) {
+              this.graficElements.sideFins.forEach((container) => {
+                container.children.forEach((ellipse) => {
+                  ellipse.fill(this.style.finFill);
+                  ellipse.stroke({
+                    width: this.style.outlineWidth,
+                    color: this.style.outline,
+                  });
+                });
+              });
+            }
+          }
+        };
+        var Snake = class extends BodyBase {
+          /**
+           * Creates an instance of Snake.
+           * @param {Vector2D} [basisPosition=Vector2D.Zero] - The initial position of the snake.
+           * @param {Object} [style={}] - The styling options for the snake.
+           * @param {string} [style.outline="white"] - The outline color of the snake.
+           * @param {number} [style.outlineWidth=2] - The outline width of the snake.
+           * @param {string} [style.fill="random"] - The fill color of the body. Allowed values: color name, hex code, or "random".
+           * @param {string} [style.eyesColor="black"] - The color of the eyes.
+           * @param {number} [scale=1] - The scale of the snake.
+           */
+          constructor(
+            basisPosition = Vector2D.Zero,
+            style2 = {
+              outline: "white",
+              outlineWidth: 2,
+              fill: "random",
+              eyesColor: "black",
+            },
+            scale = 1,
+          ) {
+            const radArray = [
+              14, 18, 19.5, 17, 15, 14.76, 14.52, 14.28, 14.04, 13.8, 13.56,
+              13.32, 13.08, 12.84, 12.6, 12.36, 12.12, 11.88, 11.64, 11.4,
+              11.16, 10.92, 10.68, 10.44, 10.2, 9.96, 9.72, 9.48, 9.24, 9, 8.76,
+              8.52, 8.28, 8.04, 7.8, 7.56, 7.32, 7.08, 6.84, 6.6, 6.36, 6.12,
+              5.88, 5.64, 5.4, 5.16, 4.92, 4.68, 4.44, 4.2, 3.96, 3.72, 3.48,
+              3.24, 3,
+            ];
+            super(
+              radArray,
+              13,
+              20,
+              basisPosition,
+              8,
+              5,
+              110,
+              3,
+              12,
+              style2,
+              scale,
+              true,
+              true,
+            );
+            this.update(basisPosition);
+          }
+        };
+        var Leg3Joint = class {
+          /**
+           * Creates an instance of Leg3Joint.
+           * @param {Object} link - The link that the joint is attached to.
+           * @param {number} shoulderWidth - The width of the shoulder.
+           * @param {boolean} isShoulderRight - Indicates if the shoulder is on the right side.
+           * @param {number} length1 - The length of the first segment.
+           * @param {number} length2 - The length of the second segment.
+           * @param {Object} constrains - Constraints for the joint.
+           * @param {number} [constrains.anchorAngle=0] - The angle of the anchor point relative to the link.
+           * @param {number} [constrains.anchorDistance=0] - The distance of the anchor point from the link.
+           * @param {number} [constrains.maxDifference=0] - The maximum allowed distance difference for the joint.
+           * @param {number} [returnSpeed=2] - The speed at which the joint returns to its target point.
+           * @param {boolean} [isForwardBend=true] - Indicates if the joint bends forward (`true`) or backward (`false`).
+           * @param {number} [scale=1] - The scale of the joint.
+           */
+          constructor(
+            link,
+            shoulderWidth,
+            isShoulderRight,
+            length1,
+            length2,
+            constrains,
+            returnSpeed = 2,
+            isForwardBend = true,
+            scale = 1,
+          ) {
+            this._scale = Math.abs(scale);
+            this.link = link;
+            this.shoulderWidth = shoulderWidth;
+            this.isShoulderRight = isShoulderRight;
+            this.isForwardBend = isForwardBend;
+            this.anchorAngle = constrains.anchorAngle;
+            this.anchorDistance = constrains.anchorDistance;
+            this.lengthes = [length1, length2];
+            this.joints = [this.evalConnPoint(), Vector2D.Zero, Vector2D.Zero];
+            this.joints[2] = this.evalTargetPoint();
+            const intersPoints = getIntercectionPoint(
+              this.joints[0],
+              this.joints[2],
+              this.lengthes[0],
+              this.lengthes[1],
+            );
+            this.joints[1] =
+              intersPoints[this.isForwardBend ^ this.isShoulderRight ? 1 : 0];
+            this.sticked = true;
+            this.targetPoint = this.evalTargetPoint();
+            this.maxDifference = constrains.maxDifference;
+            this.returnSpeed = returnSpeed;
+            this.update();
+          }
+          /**
+           * Calculates the connection point of the joint.
+           * @returns {Vector2D} - The calculated connection point.
+           */
+          evalConnPoint() {
+            const angle =
+              this.link.directionAngle +
+              (Math.PI / 2) * (this.isShoulderRight ? -1 : 1);
+            const radius = this.shoulderWidth * this.scale;
+            return Vector2D.addPolar(this.link.pos, radius, angle);
+          }
+          /**
+           * Calculates the joint point based on intersection of the segments.
+           * @returns {Vector2D} - The calculated joint point.
+           */
+          evalJointPoint() {
+            const intersectionPoints = getIntercectionPoint(
+              this.joints[0],
+              this.joints[2],
+              this.lengthes[0] * this.scale,
+              this.lengthes[1] * this.scale,
+            );
+            if (intersectionPoints.length > 0)
+              return intersectionPoints[
+                this.isForwardBend ^ this.isShoulderRight
+              ];
+            const t = this.lengthes[0] / (this.lengthes[0] + this.lengthes[1]);
+            const x =
+              this.joints[0].x + t * (this.joints[2].x - this.joints[0].x);
+            const y =
+              this.joints[0].y + t * (this.joints[2].y - this.joints[0].y);
+            return new Vector2D(x, y);
+          }
+          /**
+           * Calculates the target point for the joint based on the anchor angle and distance.
+           * @returns {Vector2D} - The calculated target point.
+           */
+          evalTargetPoint() {
+            const angle =
+              this.link.directionAngle +
+              this.anchorAngle * (this.isShoulderRight ? -1 : 1);
+            const radius = this.anchorDistance * this.scale;
+            return Vector2D.addPolar(this.joints[0], radius, angle);
+          }
+          /**
+           * Updates the joint's positions and states.
+           */
+          update() {
+            this.targetPoint = this.evalTargetPoint();
+            const dist = this.joints[2].distance(this.targetPoint);
+            if (dist > this.maxDifference * this.scale) {
+              this.sticked = false;
+            }
+            const newJoint0 = this.evalConnPoint();
+            const distTraveled = this.joints[0].distance(newJoint0);
+            this.joints[0] = newJoint0;
+            if (!this.sticked) {
+              const availableDistance = distTraveled * this.returnSpeed;
+              const target = this.targetPoint;
+              const current = this.joints[2];
+              const distToTarget = current.distance(target);
+              const lengthSum =
+                (this.lengthes[0] + this.lengthes[1]) * this.scale;
+              if (distToTarget <= availableDistance) {
+                this.joints[2] = Vector2D.fromVec2D(target);
+                this.sticked = true;
+              } else {
+                const ratio =
+                  (distToTarget < lengthSum * 1.5
+                    ? availableDistance
+                    : distToTarget - lengthSum) / distToTarget;
+                this.joints[2] = new Vector2D(
+                  current.x + ratio * (target.x - current.x),
+                  current.y + ratio * (target.y - current.y),
+                );
+              }
+            }
+            this.joints[1] = this.evalJointPoint();
+          }
+          set scale(scale) {
+            this._scale = Math.abs(scale);
+          }
+          get scale() {
+            return this._scale;
+          }
+        };
+        var Lizard = class extends BodyBase {
+          /**
+           * Creates an instance of Lizard.
+           * @param {Vector2D} [basisPosition=Vector2D.Zero] - The initial position of the lizard.
+           * @param {Object} [style={}] - Style options for the lizard.
+           * @param {string} [style.outline="white"] - The color of the lizard's outline.
+           * @param {number} [style.outlineWidth=2] - The width of the lizard's outline.
+           * @param {string} [style.fill="random"] - The fill color of the lizard.
+           * @param {string} [style.eyesColor="black"] - The color of the lizard's eyes.
+           * @param {number} [scale=1] - The scale factor for the lizard's size.
+           * @param {boolean} [isLowRes=true] - Indicates if a low-resolution model should be used.
+           */
+          constructor(
+            basisPosition = Vector2D.Zero,
+            style2 = {
+              outline: "white",
+              outlineWidth: 2,
+              fill: "random",
+              eyesColor: "black",
+            },
+            scale,
+            isLowRes = true,
+          ) {
+            const radiusArray = isLowRes
+              ? [6.5, 13, 9, 15.75, 16.5, 16, 14.5, 11, 6, 3.5, 2.25, 2, 2]
+              : [
+                  2, 11, 13, 13, 10, 13, 15.5, 16, 16.5, 16.5, 16, 16, 15, 14,
+                  12, 10, 7, 5, 4, 3, 2.5, 2, 2, 2, 2, 2,
+                ];
+            style2.legSize = 6;
+            const dist = isLowRes ? 16 : 8;
+            const ang = isLowRes ? 32 : 16;
+            const head = isLowRes ? 5 : 2;
+            super(
+              radiusArray,
+              dist,
+              ang,
+              basisPosition,
+              head,
+              5,
+              140,
+              2.5,
+              13,
+              style2,
+              scale,
+              false,
+            );
+            super.update(basisPosition);
+            const constrUp = {
+              maxDifference: 30,
+              anchorDistance: 25,
+              anchorAngle: 2.4,
+              hipAngleRange: [0, 180],
+              //TODO: implement? maybe later
+            };
+            const constrDown = {
+              maxDifference: 30,
+              anchorDistance: 25,
+              anchorAngle: 2.1,
+              hipAngleRange: [0, 180],
+              //TODO: implement? maybe later
+            };
+            const legLinks = isLowRes ? [3, 7] : [6, 14];
+            const linkUp = this.chainLinks[legLinks[0]];
+            const linkDown = this.chainLinks[legLinks[1]];
+            this.legs = [
+              new Leg3Joint(
+                linkUp,
+                8,
+                false,
+                20,
+                20,
+                constrUp,
+                2.3,
+                false,
+                scale,
+              ),
+              new Leg3Joint(
+                linkUp,
+                8,
+                true,
+                20,
+                20,
+                constrUp,
+                2.3,
+                false,
+                scale,
+              ),
+              new Leg3Joint(
+                linkDown,
+                8,
+                false,
+                20,
+                20,
+                constrDown,
+                2.3,
+                true,
+                scale,
+              ),
+              new Leg3Joint(
+                linkDown,
+                8,
+                true,
+                20,
+                20,
+                constrDown,
+                2.3,
+                true,
+                scale,
+              ),
+            ];
+            this.update(basisPosition);
+          }
+          /**
+           * Updates the lizard's position and the state of its legs.
+           * @param {Vector2D} pos - The new position of the lizard.
+           */
+          update(pos) {
+            super.update(pos);
+            this.legs.forEach((leg) => leg.update());
+          }
+          /**
+           * Displays the skeleton of the lizard including the legs.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context to draw on.
+           */
+          displaySkeleton(ctx) {
+            super.displaySkeleton(ctx);
+            this.legs.forEach((leg) => {
+              const joints = leg.joints;
+              const targetPoint = leg.targetPoint;
+              ctx.beginPath();
+              ctx.moveTo(joints[0].x, joints[0].y);
+              ctx.setLineDash([5, 5]);
+              ctx.lineTo(targetPoint.x, targetPoint.y);
+              ctx.strokeStyle = "lightgrey";
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              ctx.closePath();
+              this.drawX(ctx, targetPoint, 10);
+              ctx.setLineDash([]);
+              ctx.beginPath();
+              ctx.moveTo(joints[0].x, joints[0].y);
+              for (let i = 1; i < joints.length; i++) {
+                ctx.lineTo(joints[i].x, joints[i].y);
+              }
+              ctx.strokeStyle = "white";
+              ctx.lineWidth = 1.5;
+              ctx.stroke();
+              ctx.closePath();
+              const colors = ["green", "LimeGreen", "GreenYellow "];
+              joints.forEach((point, index) => {
+                ctx.beginPath();
+                ctx.arc(point.x, point.y, 2.6, 0, 2 * Math.PI);
+                ctx.fillStyle = colors[index];
+                ctx.fill();
+                ctx.closePath();
+              });
+            });
+          }
+          /**
+           * Displays the lizard with its legs.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context to draw on.
+           */
+          display(ctx) {
+            this.legs.forEach((leg) => {
+              leg.joints.forEach((point, i) => {
+                ctx.beginPath();
+                ctx.arc(
+                  point.x,
+                  point.y,
+                  (i < leg.joints.length / 2
+                    ? this.style.legSize
+                    : this.style.legSize) * this.scale,
+                  0,
+                  Math.PI * 2,
+                );
+                ctx.fillStyle = this.style.outline;
+                ctx.fill();
+                ctx.closePath();
+              });
+              for (let i = 1; i < leg.joints.length; i++) {
+                ctx.beginPath();
+                ctx.moveTo(leg.joints[i - 1].x, leg.joints[i - 1].y);
+                ctx.lineTo(leg.joints[i].x, leg.joints[i].y);
+                ctx.strokeStyle = this.style.outline;
+                ctx.lineWidth =
+                  i < leg.joints.length / 2
+                    ? this.style.legSize * this.scale * 2
+                    : this.style.legSize * this.scale * 2;
+                ctx.stroke();
+                ctx.closePath();
+              }
+              leg.joints.forEach((point, i) => {
+                ctx.beginPath();
+                ctx.arc(
+                  point.x,
+                  point.y,
+                  Math.max(
+                    0,
+                    (i < leg.joints.length / 2
+                      ? this.style.legSize
+                      : this.style.legSize) *
+                      this.scale -
+                      this.style.outlineWidth,
+                  ),
+                  0,
+                  Math.PI * 2,
+                );
+                ctx.fillStyle = this.style.fill;
+                ctx.fill();
+                ctx.closePath();
+              });
+              for (let i = 1; i < leg.joints.length; i++) {
+                ctx.beginPath();
+                ctx.moveTo(leg.joints[i - 1].x, leg.joints[i - 1].y);
+                ctx.lineTo(leg.joints[i].x, leg.joints[i].y);
+                ctx.strokeStyle = this.style.fill;
+                ctx.lineWidth = Math.max(
+                  0,
+                  (i < leg.joints.length / 2
+                    ? this.style.legSize * this.scale - this.style.outlineWidth
+                    : this.style.legSize * this.scale -
+                      this.style.outlineWidth) * 2,
+                );
+                ctx.stroke();
+                ctx.closePath();
+              }
+            });
+            super.display(ctx);
+          }
+          /**
+           * Initializes the PIXI graphics for lizard.
+           */
+          initPixiGrafics() {
+            super.initPixiGrafics();
+            this.graficElements.legs = [];
+            this.legs.forEach((leg) => {
+              const legObj = {};
+              const legCont = new PIXI.Container();
+              const line = new PIXI.Graphics();
+              line.moveTo(leg.joints[0].x, leg.joints[0].y);
+              line.lineTo(leg.joints[1].x, leg.joints[1].y);
+              line.lineTo(leg.joints[2].x, leg.joints[2].y);
+              if (this.style.outlineWidth > 0) {
+                line.stroke({
+                  width:
+                    (this.style.legSize * 2 + this.style.outlineWidth * 2) *
+                    this.scale,
+                  color: this.style.outline,
+                  cap: "round",
+                  join: "round",
+                });
+              }
+              legCont.addChild(line);
+              legObj.outline = line;
+              const line2 = new PIXI.Graphics();
+              line2.moveTo(leg.joints[0].x, leg.joints[0].y);
+              line2.lineTo(leg.joints[1].x, leg.joints[1].y);
+              line2.lineTo(leg.joints[2].x, leg.joints[2].y);
+              line2.stroke({
+                width: this.style.legSize * 2 * this.scale,
+                color: this.style.fill,
+                cap: "round",
+                join: "round",
+              });
+              legCont.addChild(line2);
+              legObj.fill = line2;
+              this.graficElements.legs.push(legObj);
+              this.graphicContainer.addChildAt(legCont, 0);
+            });
+          }
+          /**
+           * Updates the PIXI graphics for the lizard.
+           */
+          updatePixiGrafics() {
+            super.updatePixiGrafics();
+            this.legs.forEach((leg, index) => {
+              const line = this.graficElements.legs[index].outline;
+              const line2 = this.graficElements.legs[index].fill;
+              if (this.style.outlineWidth > 0) {
+                line.visible = true;
+                line.clear();
+                line.moveTo(leg.joints[0].x, leg.joints[0].y);
+                line.lineTo(leg.joints[1].x, leg.joints[1].y);
+                line.lineTo(leg.joints[2].x, leg.joints[2].y);
+                line.stroke({
+                  width:
+                    (this.style.legSize * 2 + this.style.outlineWidth * 2) *
+                    this.scale,
+                  color: this.style.outline,
+                  cap: "round",
+                  join: "round",
+                });
+              } else {
+                line.visible = false;
+              }
+              line2.clear();
+              line2.moveTo(leg.joints[0].x, leg.joints[0].y);
+              line2.lineTo(leg.joints[1].x, leg.joints[1].y);
+              line2.lineTo(leg.joints[2].x, leg.joints[2].y);
+              line2.stroke({
+                width: this.style.legSize * 2 * this.scale,
+                color: this.style.fill,
+                cap: "round",
+                join: "round",
+              });
+            });
+          }
+          /**
+           * Draws an "X" shape at a specified location.
+           * @param {CanvasRenderingContext2D} ctx - The canvas rendering context to draw on.
+           * @param {Vector2D} midPoint - The position of the center of the "X".
+           * @param {number} size - The size of the "X".
+           * @param {Object} [style={}] - Style options for the "X".
+           * @param {number} [style.width=2] - The width of the lines in the "X".
+           * @param {string} [style.color="lightgrey"] - The color of the lines in the "X".
+           */
+          drawX(
+            ctx,
+            midPoint,
+            size,
+            style2 = { width: 2, color: "lightgrey" },
+          ) {
+            const halfSize = size / 2;
+            const point1 = {
+              x: midPoint.x - halfSize,
+              y: midPoint.y - halfSize,
+            };
+            const point2 = {
+              x: midPoint.x + halfSize,
+              y: midPoint.y + halfSize,
+            };
+            const point3 = {
+              x: midPoint.x - halfSize,
+              y: midPoint.y + halfSize,
+            };
+            const point4 = {
+              x: midPoint.x + halfSize,
+              y: midPoint.y - halfSize,
+            };
+            ctx.beginPath();
+            ctx.moveTo(point1.x, point1.y);
+            ctx.lineTo(point2.x, point2.y);
+            ctx.stroke();
+            ctx.lineWidth = style2.width;
+            ctx.strokeStyle = style2.color;
+            ctx.beginPath();
+            ctx.moveTo(point3.x, point3.y);
+            ctx.lineTo(point4.x, point4.y);
+            ctx.stroke();
+          }
+          set scale(scale) {
+            this._scale = Math.abs(scale);
+            this.legs.forEach((leg) => (leg.scale = scale));
+          }
+          get scale() {
+            return this._scale;
+          }
+        };
+        var AnimalType = Object.freeze({
+          LIZARD: "lizard",
+          SNAKE: "snake",
+          FISH: "fish",
+          UNDEFINED: "undefined",
+        });
+
+        // public/scipts/simulation/simulation.js
+        var SimulationParams = class {
+          /**
+           * Creates an instance of SimulationParams.
+           * @param {number} [perceptionRadius=50] - The radius within which entities perceive each other.
+           * @param {number} [alignmentImpact=1] - The impact factor for alignment behavior.
+           * @param {number} [cohesionImpact=0.4] - The impact factor for cohesion behavior.
+           * @param {number} [avoidanceImpact=1] - The impact factor for avoidance behavior.
+           * @param {number} [mouseForceRadius=150] - The radius within which the mouse exerts a force.
+           * @param {number} [mouseForceScale=100] - The scale of the force applied by the mouse.
+           * @param {number} [maxVelocity=8] - The maximum velocity of entities.
+           * @param {number} [maxAcceleration=1] - The maximum acceleration of entities.
+           */
+          constructor(
+            perceptionRadius = 50,
+            alignmentImpact = 1,
+            cohesionImpact = 0.4,
+            avoidanceImpact = 1,
+            mouseForceRadius = 150,
+            mouseForceScale = 100,
+            maxVelocity = 8,
+            maxAcceleration = 1,
+          ) {
+            this.perceptionRadius = perceptionRadius;
+            this.alignmentImpact = alignmentImpact;
+            this.cohesionImpact = cohesionImpact;
+            this.avoidanceImpact = avoidanceImpact;
+            this.mouseForceRadius = mouseForceRadius;
+            this.mouseForceScale = mouseForceScale;
+            this.maxVelocity = maxVelocity;
+            this.maxAcceleration = maxAcceleration;
+          }
+          /**
+           * Sets the impact factors for alignment, cohesion, and avoidance behaviors.
+           * @param {number} alignment - The new impact factor for alignment behavior.
+           * @param {number} cohesion - The new impact factor for cohesion behavior.
+           * @param {number} avoidance - The new impact factor for avoidance behavior.
+           */
+          setImpactForces(alignment, cohesion, avoidance) {
+            this.alignmentImpact = alignment;
+            this.cohesionImpact = cohesion;
+            this.avoidanceImpact = avoidance;
+          }
+        };
+        var PositionType = Object.freeze({
+          RANDOM: "random",
+          SIDES: "sides",
+          ZERO: "zero",
+        });
+        var Boid = class {
+          /**
+           * Creates an instance of Boid.
+           * @param {number} width - The width of the simulation area.
+           * @param {number} height - The height of the simulation area.
+           * @param {number} [left=0] - The x-coordinate of the simulation area's left boundary.
+           * @param {number} [top=0] - The y-coordinate of the simulation area's top boundary.
+           * @param {Animal} [animal=undefined] - An optional animal object to be associated with this boid.
+           * @param {PositionType} [initialPos=PositionType.RANDOM] - Initial position to set. If undefined, automatically set to be random.
+           */
+          constructor(
+            width,
+            height,
+            left = 0,
+            top = 0,
+            animal = void 0,
+            initialPos = PositionType.RANDOM,
+          ) {
+            let x = 0;
+            let y = 0;
+            switch (initialPos) {
+              case PositionType.ZERO:
+                x = Math.random();
+                y = Math.random();
+                break;
+              case PositionType.SIDES:
+                if (Math.random() > 0.5) {
+                  x = left + Math.random() * width;
+                  y = Math.random() > 0.5 ? top : height;
+                } else {
+                  x = Math.random() > 0.5 ? left : width;
+                  y = top + Math.random() * height;
+                }
+                break;
+              case PositionType.RANDOM:
+              default:
+                x = left + Math.random() * width;
+                y = top + Math.random() * height;
+                break;
+            }
+            this.position = new Vector2D(x, y);
+            this.velocity = Vector2D.random(0.75 + Math.random());
+            this.acceleration = Vector2D.Zero;
+            this.animal = animal;
+          }
+          /**
+           * Displays the boid with a simple representation if no animal is defined.
+           * @param {CanvasRenderingContext2D} ctx - The 2D drawing context of the canvas.
+           */
+          displaySimple(ctx) {
+            if (this.animal) this.animal.displaySkeleton(ctx);
+            const size = 20;
+            const vecSize = 40;
+            const angle = this.velocity.angle;
+            const pVec = Vector2D.addPolar(this.position, vecSize, angle);
+            const p1 = Vector2D.addPolar(this.position, size, angle);
+            const p2 = Vector2D.addPolar(
+              this.position,
+              size,
+              angle + Math.PI / 1.3,
+            );
+            const p3 = Vector2D.addPolar(
+              this.position,
+              size,
+              angle - Math.PI / 1.3,
+            );
+            ctx.beginPath();
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.lineTo(p3.x, p3.y);
+            ctx.closePath();
+            ctx.strokeStyle = "white";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.fillStyle = "#8b99b0";
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(this.position.x, this.position.y);
+            ctx.lineTo(pVec.x, pVec.y);
+            ctx.closePath();
+            ctx.strokeStyle = "lime";
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(this.position.x, this.position.y, 3, 0, Math.PI * 2);
+            ctx.fillStyle = "red";
+            ctx.fill();
+            ctx.closePath();
+          }
+          /**
+           * Displays the boid, using its animal representation if defined.
+           * @param {CanvasRenderingContext2D} ctx - The 2D drawing context of the canvas.
+           */
+          displayAnimal(ctx) {
+            if (typeof this.animal === "undefined") {
+              this.displaySimple(ctx);
+              return;
+            }
+            this.animal.display(ctx);
+          }
+          /**
+           * Updates the boid's position and velocity based on its acceleration.
+           * @param {number} deltaTime - The time elapsed since the last update.
+           * @param {SimulationParams} params - The simulation parameters.
+           */
+          update(deltaTime, params) {
+            if (!deltaTime) return;
+            this.position.add(Vector2D.scale(this.velocity, deltaTime));
+            this.velocity.add(this.acceleration);
+            this.velocity.clampMag(params.maxVelocity);
+            if (typeof this.animal !== "undefined") {
+              this.animal.update(this.position);
+              this.animal.update(this.position);
+            }
+          }
+          /**
+           * Wraps the boid's position around the simulation boundaries.
+           * @param {Object} boundaries - The boundaries of the simulation area.
+           * @param {number} boundaries.width - The width of the simulation area.
+           * @param {number} boundaries.height - The height of the simulation area.
+           * @param {number} boundaries.left - The x-coordinate of the simulation area's left boundary.
+           * @param {number} boundaries.top - The y-coordinate of the simulation area's top boundary.
+           */
+          edges(boundaries) {
+            if (this.position.x > boundaries.width + boundaries.left) {
+              this.position.x = boundaries.left;
+            } else if (this.position.x < boundaries.left) {
+              this.position.x = boundaries.width + boundaries.left;
+            }
+            if (this.position.y > boundaries.height + boundaries.top) {
+              this.position.y = boundaries.top;
+            } else if (this.position.y < boundaries.top) {
+              this.position.y = boundaries.height + boundaries.top;
+            }
+          }
+          /**
+           * Calculates the boid's acceleration based on flocking behavior.
+           * @param {Boid[]} boids - The list of all boids in the simulation.
+           * @param {SimulationParams} params - The simulation parameters.
+           */
+          flock(boids, params) {
+            this.acceleration.set(0, 0);
+            const alignment = this.align(boids, params);
+            const cohesion = this.cohesion(boids, params);
+            const avoidance = this.separate(boids, params);
+            alignment.scale(params.alignmentImpact);
+            cohesion.scale(params.cohesionImpact);
+            avoidance.scale(params.avoidanceImpact);
+            this.acceleration.add(alignment);
+            this.acceleration.add(cohesion);
+            this.acceleration.add(avoidance);
+          }
+          /**
+           * Calculates the separation force to avoid crowding with other boids.
+           * @param {Boid[]} boids - The list of all boids in the simulation.
+           * @param {SimulationParams} params - The simulation parameters.
+           * @returns {Vector2D} The separation force.
+           */
+          separate(boids, params) {
+            let perceptionRadius = params.perceptionRadius;
+            let totalBoids = 0;
+            let avoidance = new Vector2D(0, 0);
+            boids.forEach((boid) => {
+              let d = this.position.distance(boid.position);
+              if (d < perceptionRadius && boid != this) {
+                let diff = Vector2D.sub(this.position, boid.position);
+                diff.div(d);
+                avoidance.add(diff);
+                totalBoids++;
+              }
+            });
+            if (totalBoids > 0) {
+              avoidance.div(totalBoids);
+              avoidance.magnitude = params.maxVelocity;
+              avoidance.sub(this.velocity);
+              avoidance.clampMag(params.maxAcceleration);
+            }
+            return avoidance;
+          }
+          /**
+           * Calculates the alignment force to match the velocity of nearby boids.
+           * @param {Boid[]} boids - The list of all boids in the simulation.
+           * @param {SimulationParams} params - The simulation parameters.
+           * @returns {Vector2D} The alignment force.
+           */
+          align(boids, params) {
+            let perceptionRadius = params.perceptionRadius;
+            let totalBoids = 0;
+            let desiredForce = Vector2D.Zero;
+            boids.forEach((boid) => {
+              let d = this.position.distance(boid.position);
+              if (d < perceptionRadius && boid != this) {
+                desiredForce.add(boid.velocity);
+                totalBoids++;
+              }
+            });
+            if (totalBoids > 0) {
+              desiredForce.div(totalBoids);
+              desiredForce.magnitude = params.maxVelocity;
+              desiredForce.sub(this.velocity);
+              desiredForce.clampMag(params.maxAcceleration);
+            }
+            return desiredForce;
+          }
+          /**
+           * Calculates the cohesion force to move towards the average position of nearby boids.
+           * @param {Boid[]} boids - The list of all boids in the simulation.
+           * @param {SimulationParams} params - The simulation parameters.
+           * @returns {Vector2D} The cohesion force.
+           */
+          cohesion(boids, params) {
+            let perceptionRadius = params.perceptionRadius;
+            let totalBoids = 0;
+            let steering = Vector2D.Zero;
+            boids.forEach((boid) => {
+              let d = this.position.distance(boid.position);
+              if (d < perceptionRadius && boid != this) {
+                steering.add(boid.position);
+                totalBoids++;
+              }
+            });
+            if (totalBoids > 0) {
+              steering.div(totalBoids);
+              steering.sub(this.position);
+              steering.magnitude = params.maxVelocity;
+              steering.sub(this.velocity);
+              steering.clampMag(params.maxAcceleration);
+            }
+            return steering;
+          }
+          /**
+           * Applies a force to the boid based on a point of origin, a scale factor, and an optional radius.
+           *
+           * @param {Vector2D} point - The point of origin from which the force is applied.
+           * @param {number} [scale=1] - The scale of the force to be applied.
+           * @param {number} [radius] - The optional radius within which the point of origin must be close enough for the force to be applied. If not provided, the force is applied regardless of distance.
+           *
+           * @description
+           * The method calculates the vector of force as the difference between the boid's current position and the provided point. If the distance between the boid and the point is within the specified radius (if given), the method scales the force vector by the provided scale factor and applies it to the boid's acceleration.
+           */
+          applyForce(vec, scale = 1, radius = void 0) {
+            const forceVec = Vector2D.sub(this.position, vec);
+            if (typeof radius !== "undefined" && forceVec.magnitude > radius)
+              return;
+            forceVec.magnitude = (1 / forceVec.magnitude) * scale;
+            this.acceleration.add(forceVec);
+          }
+          destroy() {
+            this.animal.destroy();
+          }
+        };
+        var RipplesManager = class {
+          /**
+           * Creates an instance of RipplesManager.
+           *
+           * @param {number} [maxRipples=10] - The maximum number of ripples.
+           * @param {number} [delay=600] - The delay after which a point is removed.
+           * @param {number} [divisor=5] - The divisor used for ripple calculations.
+           * @param {number} [threshold=10] - The threshold for ripple calculations.
+           * @param {number[]} [startVars=[0, 40, 60]] - The initial radius delay for ripple calculations.
+           */
+          constructor(
+            maxRipples = 10,
+            delay = 600,
+            divisor = 5,
+            threshold = 10,
+            startVars = [0, 40, 60],
+          ) {
+            this.points = [];
+            this.maxRipples = maxRipples;
+            this.delay = delay;
+            this.divisor = divisor;
+            this.threshold = threshold;
+            this.startVars = startVars;
+          }
+          /**
+           * Adds a point to the manager with a specified delay.
+           *
+           * @param {Vector2D} point - The point to be added.
+           */
+          addPoint(point) {
+            if (this.points.length >= this.maxRipples) return;
+            const creationTime = Date.now();
+            const arrInstance = {
+              pos: point,
+              creationTime,
+              delay: this.delay,
+            };
+            this.points.push(arrInstance);
+            setTimeout(() => {
+              this.removePoint(arrInstance);
+            }, this.delay);
+          }
+          /**
+           * Removes a point from the manager.
+           *
+           * @param {{ point: Vector2D, creationTime: number, delay: number }} arrInstance - The point object to be removed.
+           */
+          removePoint(arrInstance) {
+            const index = this.points.indexOf(arrInstance);
+            if (index > -1) {
+              this.points.splice(index, 1);
+            }
+          }
+          /**
+           * Retrieves all points with their elapsed time and delay.
+           *
+           * @returns {Array<{ point: Vector2D, time: number, delay: number }>} An array of objects, each containing a point, the time elapsed since creation, and the delay.
+           */
+          getPointsWithTimes() {
+            const currentTime = Date.now();
+            return this.points.map((item) => {
+              const timePassed = currentTime - item.creationTime;
+              return { pos: item.pos, time: timePassed };
+            });
+          }
+          /**
+           * Retrieves all points without their associated times.
+           *
+           * @returns {Array<Vector2D>} An array of points.
+           */
+          getPoints() {
+            return this.points.map((point) => point.pos);
+          }
+        };
+        var Simulation = class {
+          /**
+           * Callback for adding two numbers.
+           *
+           * @callback customAnimalCallback
+           * @param {number} index - The index of the animal in the boids array.
+           * @param {Object} style - The style object passed to the constructor.
+           * @param {number} scale - The random scale value from the sizesRange.
+           * @param {boolean} resolution - The lowRes flag passed to the constructor.
+           * @returns {BodyBase} An instance of a class extending BodyBase. Must provide methods `update(pos)`, `display(ctx)` and `displaySkeleton(ctx)`.
+           */
+          /**
+           * Creates an instance of Simulation.
+           *
+           * @param {number} numberOfBoids - The number of boids in the simulation.
+           * @param {{ width: number, height: number, margin: number }} boundaries - The dimentions of simaluation area and margin to the border of area.
+           * @param {SimulationParams} params - The parameters for boid behaviors.
+           * @param {AnimalType} animalType - The type of animal for the boids. See {@link AnimalType}.
+           * @param {{ fill: string, outline: string, outlineWidth: number, eyesColor: string }} [style={ fill: "random", outline: "white", outlineWidth: 1.5, eyesColor: "white" }] - The style settings for the animals. To make all animals have different color, set `fill: "random"`.
+           * @param {[number, number]} [sizesRange=[1, 1]] - The range for the sizes of the animals.
+           * @param {boolean} [lowRes=false] - Whether to use low resolution for the animal visuals.
+           * @param {number} [maxRipples=10] - Defines maximum number of ripples on the screen.
+           * @param {customAnimalCallback} [customAnimalCallback] - Optional callback function for creating custom animals. Being called if `animalType = AnimalType.UNDEFINED`
+           */
+          constructor(
+            numberOfBoids,
+            boundaries,
+            params,
+            style2 = {
+              fill: "random",
+              outline: "white",
+              outlineWidth: 1.5,
+              eyesColor: "white",
+            },
+            sizesRange = [1, 1],
+            animalType,
+            lowRes = false,
+            spawnPlace = PositionType.SIDES,
+            maxRipples = 10,
+            customAnimalCallback = (index, style3, scale, resolution) => {
+              return new BodyBase();
+            },
+          ) {
+            const maxBoids = numberOfBoids;
+            this.flock = [];
+            this.graphicContainers = [];
+            this.graphicContainer = new PIXI.Container();
+            this.boundaries = {
+              width: boundaries.width + boundaries.margin * 2,
+              height: boundaries.height + boundaries.margin * 2,
+              left: -boundaries.margin,
+              top: -boundaries.margin,
+              margin: boundaries.margin,
+            };
+            this.params = params;
+            this.style = JSON.parse(JSON.stringify(style2));
+            this.animalType = animalType;
+            this.sizesRange = sizesRange;
+            this.isLowRes = lowRes;
+            this.spawnPlace = spawnPlace;
+            this.customAnimalCB = customAnimalCallback;
+            for (let i = 0; i < maxBoids; i++) {
+              this.addAnimal(i);
+            }
+            this.mousePos = Vector2D.Zero;
+            this.ripples = new RipplesManager(maxRipples);
+            this.riplesContainer = new PIXI.Container();
+            this.riplesObjects = [];
+          }
+          /**
+           * Updates the simulation state, including boid behaviors and interactions with ripple points.
+           *
+           * @param {number} deltaTime - The time elapsed since the last update in milliseconds.
+           */
+          update(deltaTime) {
+            const ripplePoints = this.ripples.getPoints();
+            this.flock.forEach((boid) => {
+              boid.edges(this.boundaries);
+              boid.flock(this.flock, this.params);
+              ripplePoints.forEach((point) => {
+                boid.applyForce(
+                  point,
+                  this.params.mouseForceScale,
+                  this.params.mouseForceRadius,
+                );
+              });
+              boid.update(deltaTime, this.params);
+            });
+          }
+          /**
+           * Initializes the Pixi.js graphics for the simulation, including boid visuals and ripple effects.
+           */
+          initPixiGrafics() {
+            this.flock.forEach((boid) => {
+              boid.animal.initPixiGrafics();
+            });
+            const divisor = this.ripples.divisor;
+            const threshold = this.ripples.threshold;
+            const startVars = this.ripples.startVars;
+            const delay = this.ripples.delay;
+            const maxRipples = this.ripples.maxRipples;
+            const maxRadius = threshold + delay / divisor;
+            for (let i = 0; i < maxRipples; i++) {
+              const circleContainer = new PIXI.Container();
+              this.riplesContainer.addChild(circleContainer);
+              const rplObj = {
+                container: circleContainer,
+                circles: [],
+              };
+              for (let j = 0; j < startVars.length; j++) {
+                const c = new PIXI.Graphics();
+                c.circle(0, 0, maxRadius);
+                c.stroke({ width: 8, color: "white" });
+                circleContainer.addChild(c);
+                rplObj.circles.push(c);
+              }
+              this.riplesObjects.push(rplObj);
+            }
+          }
+          /**
+           * Updates the Pixi.js graphics for the ripple effects based on the current simulation state.
+           */
+          updatePixiRiples() {
+            const divisor = this.ripples.divisor;
+            const threshold = this.ripples.threshold;
+            const startVars = this.ripples.startVars;
+            const delay = this.ripples.delay;
+            const maxRadius = threshold + delay / divisor;
+            const simSize = this.ripples.points.length;
+            const positions = this.ripples.getPointsWithTimes();
+            for (let i = 0; i < this.riplesObjects.length; i++) {
+              const rplObj = this.riplesObjects[i];
+              if (i >= simSize) {
+                rplObj.container.visible = false;
+              } else {
+                const ripple = positions[i];
+                rplObj.container.visible = true;
+                rplObj.container.position.set(ripple.pos.x, ripple.pos.y);
+                for (let j = 0; j < rplObj.circles.length; j++) {
+                  const ripleCrcl = rplObj.circles[j];
+                  const rplPoint = positions[i];
+                  const timeToDeletion = rplPoint.time / delay;
+                  const radius = threshold + rplPoint.time / divisor;
+                  const curRadius = radius - startVars[j];
+                  if (curRadius < 0) {
+                    ripleCrcl.alpha = 0;
+                    continue;
+                  }
+                  ripleCrcl.scale = curRadius / maxRadius;
+                  const alpha =
+                    Math.pow(1 - curRadius / maxRadius, 2) *
+                    Math.pow(1 - timeToDeletion, 0.2);
+                  ripleCrcl.alpha = alpha;
+                }
+              }
+            }
+          }
+          /**
+           * Updates the Pixi.js graphics for the boid visuals based on the current simulation state.
+           */
+          updatePixiGrafics() {
+            this.flock.forEach((boid, index) => {
+              boid.animal.updatePixiGrafics();
+            });
+          }
+          /**
+           * Attaches the Pixi.js graphics containers for boids and ripples to the given stage.
+           *
+           * @param {PIXI.Container} stage - The Pixi.js stage to which the graphics containers will be attached.
+           */
+          attachPixiContainers(stage) {
+            this.graphicContainers.forEach((c) => {
+              this.graphicContainer.addChild(c);
+            });
+            stage.addChild(this.graphicContainer);
+            stage.addChild(this.riplesContainer);
+          }
+          /**
+           * Displays the boids using their animal visuals.
+           *
+           * @param {CanvasRenderingContext2D} ctx - The 2D rendering context of the canvas.
+           */
+          displayAnimal(ctx) {
+            this.flock.forEach((boid) => {
+              boid.displayAnimal(ctx);
+            });
+          }
+          /**
+           * Displays the boids with simple shapes and the ripple circles.
+           *
+           * @param {CanvasRenderingContext2D} ctx - The 2D rendering context of the canvas.
+           */
+          displaySimple(ctx) {
+            this.flock.forEach((boid) => {
+              boid.displaySimple(ctx);
+            });
+            ctx.strokeStyle = "yellow";
+            ctx.lineWidth = 2;
+            this.ripples.getPointsWithTimes().forEach((point) => {
+              ctx.beginPath();
+              ctx.arc(
+                point.point.x,
+                point.point.y,
+                this.params.mouseForceRadius,
+                0,
+                Math.PI * 2,
+              );
+              ctx.stroke();
+              ctx.closePath();
+            });
+          }
+          /**
+           * Displays the ripple effects based on the points' elapsed time and delay.
+           *
+           * @param {CanvasRenderingContext2D} ctx - The 2D rendering context of the canvas.
+           */
+          displayRipples(ctx) {
+            ctx.lineWidth = 3;
+            const divisor = this.ripples.divisor;
+            const threshold = this.ripples.threshold;
+            const startVars = this.ripples.startVars;
+            const delay = this.ripples.delay;
+            const maxRadius = threshold + delay / divisor;
+            this.ripples.getPointsWithTimes().forEach((point) => {
+              if (point.time < delay) {
+                const timeToDeletion = point.time / delay;
+                const radius = threshold + point.time / divisor;
+                for (let i = 0; i < startVars.length; i++) {
+                  const curRadius = radius - startVars[i];
+                  if (curRadius < 0) continue;
+                  const color =
+                    Math.pow(1 - curRadius / maxRadius, 2) *
+                    Math.pow(1 - timeToDeletion, 0.2);
+                  ctx.strokeStyle = `rgba(255, 255, 255, ${color})`;
+                  ctx.beginPath();
+                  ctx.arc(point.pos.x, point.pos.y, curRadius, 0, Math.PI * 2);
+                  ctx.stroke();
+                  ctx.closePath();
+                }
+              }
+            });
+          }
+          /**
+           * Adds a new ripple point at the current mouse position.
+           */
+          addPoint() {
+            this.ripples.addPoint(Vector2D.fromVec2D(this.mousePos));
+          }
+          /**
+           * Sets the current mouse position.
+           *
+           * @param {Vector2D} vec - The new mouse position.
+           */
+          setMousePos(vec) {
+            this.mousePos.set(vec.x, vec.y);
+          }
+          /**
+           * Sets the new bounds.
+           *
+           * @param {number} newWidth - The new width.
+           * @param {number} newHeight - The new height.
+           * @param {number} [newMargin=undefined] - The new margin. If left to be `undefined`, sets current margin.
+           */
+          setBounds(newWidth, newHeight, newMargin = void 0) {
+            newWidth = Math.max(1, newMargin);
+            newHeight = Math.max(1, newHeight);
+            const margin =
+              typeof newMargin !== "undefined"
+                ? newMargin
+                : this.boundaries.margin;
+            this.boundaries = {
+              width: newWidth + margin * 2,
+              height: newHeight + margin * 2,
+              left: -margin,
+              top: -margin,
+              margin,
+            };
+          }
+          /**
+           * Sets style for the creatures
+           * @param {{ fill: string, outline: string, outlineWidth: number, eyesColor: string }} [style={ fill: "#01111c", finFill: "#01111c", outline: "#04080a", outlineWidth: 1.5, eyesColor: "#04080a" }] - The style settings for the animals. To make all animals have different color, set `fill: "random"`.
+           */
+          setStyle(style2) {
+            this.flock.forEach((boid) => {
+              boid.animal.setStyle(JSON.parse(JSON.stringify(style2)));
+            });
+          }
+          addAnimal(i = 0) {
+            const scale =
+              this.sizesRange[0] +
+              Math.random() * (this.sizesRange[1] - this.sizesRange[0]);
+            const uniqueStyle = JSON.parse(JSON.stringify(this.style));
+            let animal;
+            switch (this.animalType) {
+              case AnimalType.UNDEFINED:
+                animal = this.customAnimalCallback(
+                  i,
+                  uniqueStyle,
+                  scale,
+                  this.isLowRes,
+                );
+                break;
+              case AnimalType.LIZARD:
+                animal = new Lizard(
+                  Vector2D.Zero,
+                  uniqueStyle,
+                  scale,
+                  this.isLowRes,
+                );
+                break;
+              case AnimalType.SNAKE:
+                animal = new Snake(Vector2D.Zero, uniqueStyle, scale);
+                break;
+              case AnimalType.FISH:
+              default:
+                animal = new Fish(
+                  Vector2D.Zero,
+                  uniqueStyle,
+                  scale,
+                  this.isLowRes,
+                );
+                break;
+            }
+            this.graphicContainers.push(animal.graphicContainer);
+            this.flock.push(
+              new Boid(
+                this.boundaries.width,
+                this.boundaries.height,
+                this.boundaries.left,
+                this.boundaries.top,
+                animal,
+                this.spawnPlace,
+              ),
+            );
+            return animal;
+          }
+          updateBoidAmount(amount2) {
+            const curAmount = this.flock.length;
+            if (amount2 < curAmount) {
+              const amountToDelete = curAmount - amount2;
+              const itemsToDelete = this.flock.slice(-amountToDelete);
+              itemsToDelete.forEach((boid) => boid.destroy());
+              this.flock = this.flock.slice(0, -amountToDelete);
+              this.graphicContainers = this.graphicContainers.slice(
+                0,
+                -amountToDelete,
+              );
+            } else {
+              const amountToAdd = amount2 - curAmount;
+              for (let i = 0; i < amountToAdd; i++) {
+                const animal = this.addAnimal(amount2 + i);
+                animal.initPixiGrafics();
+                this.graphicContainer.addChild(animal.graphicContainer);
+              }
+            }
+          }
+          replaceAnimalType(newAnimalType) {
+            const animalAmount = this.flock.length;
+            this.updateBoidAmount(0);
+            this.animalType = newAnimalType;
+            this.updateBoidAmount(animalAmount);
+          }
+        };
+        var RendererType = Object.freeze({
+          CANVAS: "canvas",
+          PIXI: "pixi",
+        });
+        var SimulationWrapper = class {
+          /**
+           * Creates an instance of SimulationWrapper.
+           *
+           * @param {HTMLCanvasElement} canvas - The canvas element on which the simulation will be rendered.
+           * @param {Simulation} [simulation=undefined] - The simulation instance to be managed.
+           * @param {RendererType} [renderer=RendererType.PIXI] - The type of renderer to use (PIXI or CANVAS). PIXI is preffered.
+           * @param {string} [background="#082a68"] - The background color of the canvas.
+           * @param {number} [precalculateBy=100] - The number of initial simulation steps to precalculate.
+           */
+          constructor(
+            canvas2,
+            background = "#061f30",
+            simulation = void 0,
+            renderer = RendererType.PIXI,
+            precalculateBy = 0,
+          ) {
+            this.renderer = renderer;
+            this.isTickerActive = true;
+            if (!simulation) {
+              this.simulation = this.defaultSimulation(canvas2);
+            } else {
+              this.simulation = simulation;
+            }
+            this.canvas = canvas2;
+            this.background = background;
+            this.canvas.style.background = this.background;
+            this.mousePos = new Vector2D(0, 0);
+            this.isInteractable = false;
+            this._mousemoveListener = (event) => {
+              const pos = getMousePos(this.canvas, event);
+              this.mousePos.set(pos.x, pos.y);
+              this.simulation.setMousePos(pos);
+            };
+            this._mousedownListener = (event) => {
+              this.simulation.addPoint();
+            };
+            this.lastTime = performance.now();
+            for (let i = 0; i < Math.min(precalculateBy, 1e3); i++) {
+              this.simulation.update(1);
+            }
+            switch (this.renderer) {
+              case RendererType.CANVAS:
+                this.ctx = canvas2.getContext("2d");
+                this.initCanvas();
+                break;
+              case RendererType.PIXI:
+              default:
+                this.app = new PIXI.Application();
+                this.initPixi();
+                break;
+            }
+          }
+          /**
+           * Creates simulation object with default parameters.
+           * @param {HTMLCanvasElement} canvas - The canvas element on which the simulation will be rendered.
+           */
+          defaultSimulation(canvas2) {
+            const bounds = {
+              width: canvas2.width,
+              height: canvas2.height,
+              margin: 200,
+            };
+            const params = new SimulationParams();
+            params.setImpactForces(1, 0.8, 1.2);
+            params.maxVelocity = this.renderer == RendererType.PIXI ? 3 : 8;
+            params.maxAcceleration = RendererType.PIXI ? 0.3 : 1;
+            const style2 = {
+              fill: "#01111c",
+              //"#0b2b42",
+              // fill: "random",
+              finFill: "#01111c",
+              //"#0b2b42",
+              outline: "#04080a",
+              //"#0a2030",
+              outlineWidth: 1.5,
+              eyesColor: "#04080a",
+              //"#0a2030",
+            };
+            const simulation = new Simulation(
+              150,
+              bounds,
+              params,
+              style2,
+              [0.5, 1],
+              AnimalType.FISH,
+              true,
+              PositionType.SIDES,
+              20,
+            );
+            return simulation;
+          }
+          /**
+           * Add or remove event listeners for mouse movements and clicks on the canvas.
+           * @param {boolean} [isToggled=true] To add or to remove listeners.
+           */
+          toggleInteractions(isToggled = true) {
+            if (isToggled === this.isInteractable) return;
+            this.isInteractable = isToggled;
+            if (this.isInteractable) {
+              this.canvas.addEventListener(
+                "mousemove",
+                this._mousemoveListener,
+              );
+              this.canvas.addEventListener(
+                "mousedown",
+                this._mousedownListener,
+              );
+            } else {
+              console.log("called");
+              this.canvas.removeEventListener(
+                "mousemove",
+                this._mousemoveListener,
+              );
+              this.canvas.removeEventListener(
+                "mousedown",
+                this._mousedownListener,
+              );
+            }
+          }
+          /**
+           * Initializes the PIXI renderer and attaches the PIXI containers.
+           */
+          async initPixi() {
+            await this.app.init({
+              canvas: this.canvas,
+              width: this.canvas.width,
+              height: this.canvas.height,
+              preference: "webgl",
+              background: this.background,
+              antialias: true,
+            });
+            this.simulation.initPixiGrafics();
+            this.simulation.attachPixiContainers(this.app.stage);
+            this.app.renderer.events.autoPreventDefault = false;
+            this.app.renderer.view.canvas.style["touch-action"] = "auto";
+            this.app.ticker.add((delta) => {
+              if (this.isTickerActive) {
+                this.simulation.update(delta.deltaTime);
+                this.simulation.updatePixiGrafics();
+                this.simulation.updatePixiRiples();
+              }
+            });
+          }
+          /**
+           * Animation loop for the canvas renderer.
+           *
+           * @param {DOMHighResTimeStamp} timestamp - The current time for the animation frame.
+           */
+          animate = (timestamp) => {
+            const deltaTime = (timestamp - this.lastTime) / 30;
+            this.lastTime = timestamp;
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.simulation.update(deltaTime);
+            this.simulation.displayAnimal(this.ctx);
+            this.simulation.displayRipples(this.ctx);
+            requestAnimationFrame(this.animate);
+          };
+          /**
+           * Initializes the canvas renderer and starts the animation loop.
+           */
+          initCanvas() {
+            requestAnimationFrame(this.animate);
+          }
+          /**
+           * Resizes resolution of the canvas to the specified size. Simulation bounds are also adjusted.
+           * @param {number} width - Width to resize canvas to.
+           * @param {number} height - Height to resize canvas to.
+           */
+          resize(width = 1600, height = 600) {
+            width = Math.max(width, 1);
+            height = Math.max(height, 1);
+            setTimeout(() => {
+              this.simulation.setBounds(width, height);
+              switch (this.renderer) {
+                case RendererType.CANVAS:
+                  this.canvas.width = width;
+                  this.canvas.height = height;
+                  break;
+                case RendererType.PIXI:
+                default:
+                  this.app.renderer.resize(width, height);
+                  break;
+              }
+            });
+          }
+          /**
+           * @param {{ fill: string, outline: string, outlineWidth: number, eyesColor: string }} [style={ fill: "#01111c", finFill: "#01111c", outline: "#04080a", outlineWidth: 1.5, eyesColor: "#04080a" }] - The style settings for the animals. To make all animals have different color, set `fill: "random"`.
+           * @param {string} [background="#061f30"] - Canvas background new color.
+           */
+          setBasicStyle(
+            style2 = {
+              fill: "#01111c",
+              finFill: "#01111c",
+              outline: "#04080a",
+              outlineWidth: 1.5,
+              eyesColor: "#04080a",
+            },
+            background = "#061f30",
+          ) {
+            this.background = background;
+            this.canvas.style.background = this.background;
+            if (this.renderer === RendererType.PIXI) {
+              this.app.renderer.background._backgroundColor.value =
+                this.background;
+            }
+            this.simulation.setStyle(style2);
+          }
+          changeCreaturesAmount(amount2) {
+            if (amount2 < 0) return;
+            this.isTickerActive = false;
+            this.simulation.updateBoidAmount(amount2);
+            this.isTickerActive = true;
+          }
+          replaceAnimalType(newAnimalType) {
+            this.simulation.replaceAnimalType(newAnimalType);
+          }
+        };
+
+        // public/scipts/index.js
+        var canvas = document.getElementById("canvas");
+        var simWrapper = new SimulationWrapper(canvas);
+        simWrapper.toggleInteractions(true);
+        var previousData = {
+          animalType: AnimalType.FISH,
+          amount: 150,
+          style: {
+            fill: "random",
+            finFill: "inherit",
+            outline: "#04080a",
+            outlineWidth: 1.5,
+            eyesColor: "#04080a",
+          },
+        };
+        var style = {
+          ...previousData.style,
+        };
+        var bodyColorInput = document.getElementById("body-color");
+        var randomButton = document.getElementById("body-color-random");
+        bodyColorInput.addEventListener("input", function () {
+          style.fill = bodyColorInput.value;
+          randomButton.disabled = false;
+        });
+        randomButton.addEventListener("click", function () {
+          style.fill = "random";
+          randomButton.disabled = true;
+        });
+        var finColorInput = document.getElementById("fin-color");
+        var inheritButton = document.getElementById("fin-color-inherit");
+        finColorInput.addEventListener("input", function () {
+          style.finFill = finColorInput.value;
+          inheritButton.disabled = false;
+        });
+        inheritButton.addEventListener("click", function () {
+          style.finFill = "inherit";
+          inheritButton.disabled = true;
+        });
+        var selectedAnimal = AnimalType.FISH;
+        var animalRadios = document.querySelectorAll('input[name="animal"]');
+        animalRadios.forEach((radio) => {
+          radio.addEventListener("change", handleAnimalChange);
+        });
+        var finDiv = document.getElementById("fin-option");
+        var animalMap = {
+          fish: AnimalType.FISH,
+          lizard: AnimalType.LIZARD,
+        };
+        function handleAnimalChange(event) {
+          selectedAnimal = animalMap[event.target.value];
+          if (selectedAnimal === AnimalType.FISH) {
+            finDiv.classList.remove("hidden");
+          } else {
+            finDiv.classList.add("hidden");
+          }
+        }
+        var outlineColorInput = document.getElementById("outline-color");
+        outlineColorInput.addEventListener("input", function () {
+          style.outline = outlineColorInput.value;
+        });
+        var eyeColorInput = document.getElementById("eye-color");
+        eyeColorInput.addEventListener("input", function () {
+          style.eyesColor = eyeColorInput.value;
+        });
+        var amount = 150;
+        var rangeInput = document.getElementById("amount");
+        var rangeLabel = document.getElementById("amount-label");
+        rangeLabel.textContent = rangeInput.value;
+        rangeInput.addEventListener("input", function () {
+          rangeLabel.textContent = rangeInput.value;
+          amount = parseInt(rangeInput.value);
+        });
+        function updateSimulationSettings() {
+          let styleCopy = { ...style };
+          if (styleCopy.finFill === "inherit") {
+            delete styleCopy.finFill;
+          }
+          if (selectedAnimal !== previousData.animalType) {
+            simWrapper.replaceAnimalType(selectedAnimal);
+            simWrapper.setBasicStyle(styleCopy, "#29c6ff");
+          } else if (amount != previousData.amount) {
+            simWrapper.changeCreaturesAmount(amount);
+            simWrapper.setBasicStyle(styleCopy, "#29c6ff");
+          } else {
+            simWrapper.setBasicStyle(styleCopy, "#29c6ff");
+          }
+          previousData.amount = amount;
+          previousData.animalType = selectedAnimal;
+          previousData.style = { ...style };
+        }
+        document
+          .getElementById("confirm")
+          .addEventListener("click", function () {
+            document.getElementById("settings").open = false;
+            updateSimulationSettings();
+          });
+        setTimeout(() => {
+          updateSimulationSettings();
+          console.log(style);
+        });
+      })();
+    </script>
+  </body>
+</html>
