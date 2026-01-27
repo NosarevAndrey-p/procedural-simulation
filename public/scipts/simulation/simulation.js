@@ -818,6 +818,13 @@ class Simulation {
     this.animalType = newAnimalType;
     this.updateBoidAmount(animalAmount);
   }
+
+  setResolution(lowRes) {
+    const animalAmount = this.flock.length;
+    this.updateBoidAmount(0);
+    this.isLowRes = lowRes;
+    this.updateBoidAmount(animalAmount);
+  }
 }
 
 /**
@@ -1058,6 +1065,12 @@ class SimulationWrapper {
 
   replaceAnimalType(newAnimalType) {
     this.simulation.replaceAnimalType(newAnimalType);
+  }
+
+  setAnimalResolution(lowRes) {
+    this.isTickerActive = false;
+    this.simulation.setResolution(lowRes);
+    this.isTickerActive = true;
   }
 }
 

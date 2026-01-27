@@ -9,6 +9,7 @@ simWrapper.toggleInteractions(true);
 let previousData = {
   animalType: AnimalType.FISH,
   amount: 150,
+  lowRes: true,
   style: {
     fill: "random",
     finFill: "inherit",
@@ -99,6 +100,15 @@ rangeInput.addEventListener("input", function () {
 
 //////////////////////////
 
+let lowRes = true;
+const lowResCheckbox = document.getElementById("low-resolution");
+
+lowResCheckbox.addEventListener("change", function () {
+  lowRes = lowResCheckbox.checked;
+});
+
+//////////////////////////
+
 function updateSimulationSettings() {
   let styleCopy = { ...style };
   if (styleCopy.finFill === "inherit") {
@@ -111,11 +121,15 @@ function updateSimulationSettings() {
   } else if (amount != previousData.amount) {
     simWrapper.changeCreaturesAmount(amount);
     simWrapper.setBasicStyle(styleCopy, "#29c6ff");
+  } else if (lowRes !== previousData.lowRes) {
+    simWrapper.setAnimalResolution(lowRes);
+    simWrapper.setBasicStyle(styleCopy, "#29c6ff");
   } else {
     simWrapper.setBasicStyle(styleCopy, "#29c6ff");
   }
   previousData.amount = amount;
   previousData.animalType = selectedAnimal;
+  previousData.lowRes = lowRes;
   previousData.style = { ...style };
 }
 
