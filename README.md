@@ -2,7 +2,7 @@
 
 ## View Live Demo
 
-You can view the interactive simulation here: **[Procedural Animation Simulation](https://nosarevandrey-p.github.io/procedural-simulation/)**
+You can view the interactive simulation here: <a href="https://nosarevandrey-p.github.io/procedural-simulation/" target="_blank">**Procedural Animation Simulation**</a>
 
 ## Features
 
